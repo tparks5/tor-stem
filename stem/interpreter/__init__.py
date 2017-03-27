@@ -60,7 +60,7 @@ def main():
     print(stem.interpreter.arguments.get_help())
     sys.exit()
 
-  if args.disable_color:
+  if args.disable_color or args.cli:
     global PROMPT
     stem.util.term.DISABLE_COLOR_SUPPORT = True
     PROMPT = '>>> '
