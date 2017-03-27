@@ -974,6 +974,13 @@ class TestEventListeners(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
+class TestCaching(unittest.TestCase):
+  """
+  Test cache management commands, like clear_cache
+  """
+  # Note that is_caching_enabled, set_caching, clear_cache have no tests
+  pass 
+
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
