@@ -129,7 +129,7 @@ class TestControllerAuth(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
-class TestGetStatuses(unittest.TestCase):
+class TestStatusAccessors(unittest.TestCase):
   """
   Test functions that return Tor's status, like get_info and get_exit_policy
   """
