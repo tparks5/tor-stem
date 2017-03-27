@@ -20,10 +20,11 @@ DEFAULT_ARGS = {
   'tor_path': 'tor',
   'disable_color': False,
   'print_help': False,
+  'cli': False,
 }
 
 OPT = 'i:s:h'
-OPT_EXPANDED = ['interface=', 'socket=', 'tor=', 'no-color', 'help']
+OPT_EXPANDED = ['interface=', 'socket=', 'tor=', 'no-color', 'cli', 'help']
 
 
 def parse(argv):
@@ -73,6 +74,8 @@ def parse(argv):
       args['tor_path'] = arg
     elif opt == '--no-color':
       args['disable_color'] = True
+    elif opt in ('--cli'):
+      args['cli'] = True 
     elif opt in ('-h', '--help'):
       args['print_help'] = True
 
