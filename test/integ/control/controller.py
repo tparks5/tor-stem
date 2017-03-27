@@ -487,6 +487,27 @@ class TestDescriptorAccessors(unittest.TestCase):
       self.assertEqual('pop goes the weasel', controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', 'pop goes the weasel'))
       self.assertEqual(None, controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', await_result = False))
 
+  def _get_router_status_entry(self, controller):
+    """
+    Provides a router status entry for a relay with a nickname other than
+    'Unnamed'. This fails the test if unable to find one.
+    """
+
+    global TEST_ROUTER_STATUS_ENTRY
+
+    if TEST_ROUTER_STATUS_ENTRY is None:
+      for desc in controller.get_network_statuses():
+        if desc.nickname != 'Unnamed' and Flag.NAMED in desc.flags:
+          TEST_ROUTER_STATUS_ENTRY = desc
+          break
+
+      if TEST_ROUTER_STATUS_ENTRY is None:
+        # this is only likely to occure if we can't get descriptors
+        test.runner.skip(self, '(no named relays)')
+        return
+
+    return TEST_ROUTER_STATUS_ENTRY
+
 class TestConfOptions(unittest.TestCase):
   """
   Test commands that manage Tor configuration options, like get_conf.
@@ -974,6 +995,44 @@ class TestEventListeners(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
+  @require_controller
+  @require_version(Requirement.EVENT_SIGNAL)
+  def test_reset_notification(self):
+    """
+    Checks that a notificiation listener is... well, notified of SIGHUPs.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      received_events = []
+
+      def status_listener(my_controller, state, timestamp):
+        received_events.append((my_controller, state, timestamp))
+
+      controller.add_status_listener(status_listener)
+
+      before = time.time()
+      controller.signal(Signal.HUP)
+
+      # I really hate adding a sleep here, but signal() is non-blocking.
+      while len(received_events) == 0:
+        if (time.time() - before) > 2:
+          self.fail("We've waited a couple seconds for SIGHUP to generate an event, but it didn't come")
+
+        time.sleep(0.001)
+
+      after = time.time()
+
+      self.assertEqual(1, len(received_events))
+
+      state_controller, state_type, state_timestamp = received_events[0]
+
+      self.assertEqual(controller, state_controller)
+      self.assertEqual(State.RESET, state_type)
+      self.assertTrue(state_timestamp > before and state_timestamp < after)
+
+      controller.reset_conf('__OwningControllerProcess')
+
+
 class TestCaching(unittest.TestCase):
   """
   Test cache management commands, like clear_cache.
@@ -1265,84 +1324,14 @@ class TestStreams(unittest.TestCase):
       # unknown stream
 
       self.assertRaises(stem.InvalidArguments, controller.close_stream, 'blarg')
-# God class to be dismantled
-class TestController(unittest.TestCase):
-  @only_run_once
-  @require_controller
-  def test_missing_capabilities(self):
-    """
-    Check to see if tor supports any events, signals, or features that we
-    don't.
-    """
 
-    with test.runner.get_runner().get_tor_controller() as controller:
-      for event in controller.get_info('events/names').split():
-        if event not in EventType:
-          register_new_capability('Event', event)
+class TestSignals(unittest.TestCase):
+  """
+  Test methods for sending signals to Tor.
+  """
 
-      for signal in controller.get_info('signal/names').split():
-        if signal not in Signal:
-          register_new_capability('Signal', signal)
-
-      # new features should simply be added to enable_feature()'s docs
-
-      for feature in controller.get_info('features/names').split():
-        if feature not in ('EXTENDED_EVENTS', 'VERBOSE_NAMES'):
-          register_new_capability('Feature', feature)
-
-
-  @require_controller
-  @require_version(Requirement.EVENT_SIGNAL)
-  def test_reset_notification(self):
-    """
-    Checks that a notificiation listener is... well, notified of SIGHUPs.
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      received_events = []
-
-      def status_listener(my_controller, state, timestamp):
-        received_events.append((my_controller, state, timestamp))
-
-      controller.add_status_listener(status_listener)
-
-      before = time.time()
-      controller.signal(Signal.HUP)
-
-      # I really hate adding a sleep here, but signal() is non-blocking.
-      while len(received_events) == 0:
-        if (time.time() - before) > 2:
-          self.fail("We've waited a couple seconds for SIGHUP to generate an event, but it didn't come")
-
-        time.sleep(0.001)
-
-      after = time.time()
-
-      self.assertEqual(1, len(received_events))
-
-      state_controller, state_type, state_timestamp = received_events[0]
-
-      self.assertEqual(controller, state_controller)
-      self.assertEqual(State.RESET, state_type)
-      self.assertTrue(state_timestamp > before and state_timestamp < after)
-
-      controller.reset_conf('__OwningControllerProcess')
-
-
-
-
-
-
-
-
-  @require_controller
-  def test_get_socks_listeners(self):
-    """
-    Test Controller.get_socks_listeners against a running tor instance.
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      self.assertEqual([('127.0.0.1', 1112)], controller.get_socks_listeners())
+  # These methods have no tests: get_effective_rate, is_geoip_available,
+  # and drop_guards
 
   @require_controller
   def test_signal(self):
@@ -1411,6 +1400,43 @@ class TestController(unittest.TestCase):
       ip_addr = response[response.find(b'\r\n\r\n'):].strip()
       self.assertTrue(stem.util.connection.is_valid_ipv4_address(stem.util.str_tools._to_unicode(ip_addr)), "'%s' isn't an address" % ip_addr)
 
+class TestController(unittest.TestCase):
+  """
+  Controller tests not belonging to other categories.
+  """
+
+  @only_run_once
+  @require_controller
+  def test_missing_capabilities(self):
+    """
+    Check to see if tor supports any events, signals, or features that we
+    don't.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      for event in controller.get_info('events/names').split():
+        if event not in EventType:
+          register_new_capability('Event', event)
+
+      for signal in controller.get_info('signal/names').split():
+        if signal not in Signal:
+          register_new_capability('Signal', signal)
+
+      # new features should simply be added to enable_feature()'s docs
+
+      for feature in controller.get_info('features/names').split():
+        if feature not in ('EXTENDED_EVENTS', 'VERBOSE_NAMES'):
+          register_new_capability('Feature', feature)
+
+  @require_controller
+  def test_get_socks_listeners(self):
+    """
+    Test Controller.get_socks_listeners against a running tor instance.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      self.assertEqual([('127.0.0.1', 1112)], controller.get_socks_listeners())
+
 
   @require_controller
   def test_transition_to_relay(self):
@@ -1431,23 +1457,3 @@ class TestController(unittest.TestCase):
       controller.reset_conf('OrPort', 'DisableNetwork')
       self.assertEqual(None, controller.get_conf('OrPort'))
 
-  def _get_router_status_entry(self, controller):
-    """
-    Provides a router status entry for a relay with a nickname other than
-    'Unnamed'. This fails the test if unable to find one.
-    """
-
-    global TEST_ROUTER_STATUS_ENTRY
-
-    if TEST_ROUTER_STATUS_ENTRY is None:
-      for desc in controller.get_network_statuses():
-        if desc.nickname != 'Unnamed' and Flag.NAMED in desc.flags:
-          TEST_ROUTER_STATUS_ENTRY = desc
-          break
-
-      if TEST_ROUTER_STATUS_ENTRY is None:
-        # this is only likely to occure if we can't get descriptors
-        test.runner.skip(self, '(no named relays)')
-        return
-
-    return TEST_ROUTER_STATUS_ENTRY
