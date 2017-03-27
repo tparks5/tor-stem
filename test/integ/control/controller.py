@@ -42,6 +42,180 @@ from test.runner import (
 TEST_ROUTER_STATUS_ENTRY = None
 
 
+class TestGetStatuses(unittest.TestCase):
+  """
+  Test functions that return Tor's status, like get_info and get_exit_policy
+  """
+  # missing test cases: get_accounting_stats, get_user, get_pid, 
+  # is_user_traffic_allowed
+
+  @require_controller
+  def test_getinfo(self):
+    """
+    Exercises GETINFO with valid and invalid queries.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      # successful single query
+
+      torrc_path = runner.get_torrc_path()
+      self.assertEqual(torrc_path, controller.get_info('config-file'))
+      self.assertEqual(torrc_path, controller.get_info('config-file', 'ho hum'))
+
+      expected = {'config-file': torrc_path}
+      self.assertEqual(expected, controller.get_info(['config-file']))
+      self.assertEqual(expected, controller.get_info(['config-file'], 'ho hum'))
+
+      # successful batch query, we don't know the values so just checking for
+      # the keys
+
+      getinfo_params = set(['version', 'config-file', 'config/names'])
+      self.assertEqual(getinfo_params, set(controller.get_info(['version', 'config-file', 'config/names']).keys()))
+
+      # non-existant option
+
+      self.assertRaises(stem.ControllerError, controller.get_info, 'blarg')
+      self.assertEqual('ho hum', controller.get_info('blarg', 'ho hum'))
+
+      # empty input
+
+      self.assertRaises(stem.ControllerError, controller.get_info, '')
+      self.assertEqual('ho hum', controller.get_info('', 'ho hum'))
+
+      self.assertEqual({}, controller.get_info([]))
+      self.assertEqual({}, controller.get_info([], {}))
+
+  @require_controller
+  def test_get_version(self):
+    """
+    Test that the convenient method get_version() works.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      version = controller.get_version()
+      self.assertTrue(isinstance(version, stem.version.Version))
+      self.assertEqual(version, runner.get_tor_version())
+
+  @require_controller
+  def test_get_exit_policy(self):
+    """
+    Sanity test for get_exit_policy(). We have the default policy (no
+    ExitPolicy set) which is a little... long due to the boilerplate.
+    """
+
+    expected = ExitPolicy(
+      'reject 0.0.0.0/8:*',
+      'reject 169.254.0.0/16:*',
+      'reject 127.0.0.0/8:*',
+      'reject 192.168.0.0/16:*',
+      'reject 10.0.0.0/8:*',
+      'reject 172.16.0.0/12:*',
+      # this is where 'reject [public_addr]:*' may or may not be
+      'reject *:25',
+      'reject *:119',
+      'reject *:135-139',
+      'reject *:445',
+      'reject *:563',
+      'reject *:1214',
+      'reject *:4661-4666',
+      'reject *:6346-6429',
+      'reject *:6699',
+      'reject *:6881-6999',
+      'accept *:*',
+    )
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      # We can't simply compare the policies because the tor policy may or may
+      # not have a reject entry for our public address. Hence, stripping it
+      # from the policy's string, then comparing those.
+
+      policy_str = str(controller.get_exit_policy())
+
+      public_addr_start = policy_str.find('reject 172.16.0.0/12:*') + 22
+      public_addr_end = policy_str.find(', reject *:25')
+
+      policy_str = policy_str[:public_addr_start] + policy_str[public_addr_end:]
+      self.assertEqual(str(expected), policy_str)
+
+  @require_controller
+  def test_get_ports(self):
+    """
+    Test Controller.get_ports against a running tor instance.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      self.assertEqual([], controller.get_ports(Listener.OR))
+      self.assertEqual([], controller.get_ports(Listener.DIR))
+      self.assertEqual([test.runner.SOCKS_PORT], controller.get_ports(Listener.SOCKS))
+      self.assertEqual([], controller.get_ports(Listener.TRANS))
+      self.assertEqual([], controller.get_ports(Listener.NATD))
+      self.assertEqual([], controller.get_ports(Listener.DNS))
+
+      if test.runner.Torrc.PORT in runner.get_options():
+        self.assertEqual([test.runner.CONTROL_PORT], controller.get_ports(Listener.CONTROL))
+      else:
+        self.assertEqual([], controller.get_ports(Listener.CONTROL))
+
+  @require_controller
+  def test_get_listeners(self):
+    """
+    Test Controller.get_listeners against a running tor instance.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      self.assertEqual([], controller.get_listeners(Listener.OR))
+      self.assertEqual([], controller.get_listeners(Listener.DIR))
+      self.assertEqual([('127.0.0.1', test.runner.SOCKS_PORT)], controller.get_listeners(Listener.SOCKS))
+      self.assertEqual([], controller.get_listeners(Listener.TRANS))
+      self.assertEqual([], controller.get_listeners(Listener.NATD))
+      self.assertEqual([], controller.get_listeners(Listener.DNS))
+
+      if test.runner.Torrc.PORT in runner.get_options():
+        self.assertEqual([('127.0.0.1', test.runner.CONTROL_PORT)], controller.get_listeners(Listener.CONTROL))
+      else:
+        self.assertEqual([], controller.get_listeners(Listener.CONTROL))
+
+  @require_controller
+  def test_protocolinfo(self):
+    """
+    Test that the convenient method protocolinfo() works.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller(False) as controller:
+      protocolinfo = controller.get_protocolinfo()
+      self.assertTrue(isinstance(protocolinfo, stem.response.protocolinfo.ProtocolInfoResponse))
+
+      # Doing a sanity test on the ProtocolInfoResponse instance returned.
+      tor_options = runner.get_options()
+      tor_version = runner.get_tor_version()
+      auth_methods = []
+
+      if test.runner.Torrc.COOKIE in tor_options:
+        auth_methods.append(stem.response.protocolinfo.AuthMethod.COOKIE)
+
+        if tor_version >= stem.version.Requirement.AUTH_SAFECOOKIE:
+          auth_methods.append(stem.response.protocolinfo.AuthMethod.SAFECOOKIE)
+
+      if test.runner.Torrc.PASSWORD in tor_options:
+        auth_methods.append(stem.response.protocolinfo.AuthMethod.PASSWORD)
+
+      if not auth_methods:
+        auth_methods.append(stem.response.protocolinfo.AuthMethod.NONE)
+
+      self.assertEqual(tuple(auth_methods), protocolinfo.auth_methods)
+
 class TestController(unittest.TestCase):
   @only_run_once
   @require_controller
@@ -224,99 +398,6 @@ class TestController(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
-  @require_controller
-  def test_getinfo(self):
-    """
-    Exercises GETINFO with valid and invalid queries.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      # successful single query
-
-      torrc_path = runner.get_torrc_path()
-      self.assertEqual(torrc_path, controller.get_info('config-file'))
-      self.assertEqual(torrc_path, controller.get_info('config-file', 'ho hum'))
-
-      expected = {'config-file': torrc_path}
-      self.assertEqual(expected, controller.get_info(['config-file']))
-      self.assertEqual(expected, controller.get_info(['config-file'], 'ho hum'))
-
-      # successful batch query, we don't know the values so just checking for
-      # the keys
-
-      getinfo_params = set(['version', 'config-file', 'config/names'])
-      self.assertEqual(getinfo_params, set(controller.get_info(['version', 'config-file', 'config/names']).keys()))
-
-      # non-existant option
-
-      self.assertRaises(stem.ControllerError, controller.get_info, 'blarg')
-      self.assertEqual('ho hum', controller.get_info('blarg', 'ho hum'))
-
-      # empty input
-
-      self.assertRaises(stem.ControllerError, controller.get_info, '')
-      self.assertEqual('ho hum', controller.get_info('', 'ho hum'))
-
-      self.assertEqual({}, controller.get_info([]))
-      self.assertEqual({}, controller.get_info([], {}))
-
-  @require_controller
-  def test_get_version(self):
-    """
-    Test that the convenient method get_version() works.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      version = controller.get_version()
-      self.assertTrue(isinstance(version, stem.version.Version))
-      self.assertEqual(version, runner.get_tor_version())
-
-  @require_controller
-  def test_get_exit_policy(self):
-    """
-    Sanity test for get_exit_policy(). We have the default policy (no
-    ExitPolicy set) which is a little... long due to the boilerplate.
-    """
-
-    expected = ExitPolicy(
-      'reject 0.0.0.0/8:*',
-      'reject 169.254.0.0/16:*',
-      'reject 127.0.0.0/8:*',
-      'reject 192.168.0.0/16:*',
-      'reject 10.0.0.0/8:*',
-      'reject 172.16.0.0/12:*',
-      # this is where 'reject [public_addr]:*' may or may not be
-      'reject *:25',
-      'reject *:119',
-      'reject *:135-139',
-      'reject *:445',
-      'reject *:563',
-      'reject *:1214',
-      'reject *:4661-4666',
-      'reject *:6346-6429',
-      'reject *:6699',
-      'reject *:6881-6999',
-      'accept *:*',
-    )
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      # We can't simply compare the policies because the tor policy may or may
-      # not have a reject entry for our public address. Hence, stripping it
-      # from the policy's string, then comparing those.
-
-      policy_str = str(controller.get_exit_policy())
-
-      public_addr_start = policy_str.find('reject 172.16.0.0/12:*') + 22
-      public_addr_end = policy_str.find(', reject *:25')
-
-      policy_str = policy_str[:public_addr_start] + policy_str[public_addr_end:]
-      self.assertEqual(str(expected), policy_str)
 
   @require_controller
   def test_authenticate(self):
@@ -330,36 +411,6 @@ class TestController(unittest.TestCase):
       controller.authenticate(test.runner.CONTROL_PASSWORD)
       test.runner.exercise_controller(self, controller)
 
-  @require_controller
-  def test_protocolinfo(self):
-    """
-    Test that the convenient method protocolinfo() works.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller(False) as controller:
-      protocolinfo = controller.get_protocolinfo()
-      self.assertTrue(isinstance(protocolinfo, stem.response.protocolinfo.ProtocolInfoResponse))
-
-      # Doing a sanity test on the ProtocolInfoResponse instance returned.
-      tor_options = runner.get_options()
-      tor_version = runner.get_tor_version()
-      auth_methods = []
-
-      if test.runner.Torrc.COOKIE in tor_options:
-        auth_methods.append(stem.response.protocolinfo.AuthMethod.COOKIE)
-
-        if tor_version >= stem.version.Requirement.AUTH_SAFECOOKIE:
-          auth_methods.append(stem.response.protocolinfo.AuthMethod.SAFECOOKIE)
-
-      if test.runner.Torrc.PASSWORD in tor_options:
-        auth_methods.append(stem.response.protocolinfo.AuthMethod.PASSWORD)
-
-      if not auth_methods:
-        auth_methods.append(stem.response.protocolinfo.AuthMethod.NONE)
-
-      self.assertEqual(tuple(auth_methods), protocolinfo.auth_methods)
 
   @require_controller
   def test_getconf(self):
@@ -826,48 +877,6 @@ class TestController(unittest.TestCase):
         controller.load_conf(oldconf)
         controller.save_conf()
         controller.reset_conf('__OwningControllerProcess')
-
-  @require_controller
-  def test_get_ports(self):
-    """
-    Test Controller.get_ports against a running tor instance.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      self.assertEqual([], controller.get_ports(Listener.OR))
-      self.assertEqual([], controller.get_ports(Listener.DIR))
-      self.assertEqual([test.runner.SOCKS_PORT], controller.get_ports(Listener.SOCKS))
-      self.assertEqual([], controller.get_ports(Listener.TRANS))
-      self.assertEqual([], controller.get_ports(Listener.NATD))
-      self.assertEqual([], controller.get_ports(Listener.DNS))
-
-      if test.runner.Torrc.PORT in runner.get_options():
-        self.assertEqual([test.runner.CONTROL_PORT], controller.get_ports(Listener.CONTROL))
-      else:
-        self.assertEqual([], controller.get_ports(Listener.CONTROL))
-
-  @require_controller
-  def test_get_listeners(self):
-    """
-    Test Controller.get_listeners against a running tor instance.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      self.assertEqual([], controller.get_listeners(Listener.OR))
-      self.assertEqual([], controller.get_listeners(Listener.DIR))
-      self.assertEqual([('127.0.0.1', test.runner.SOCKS_PORT)], controller.get_listeners(Listener.SOCKS))
-      self.assertEqual([], controller.get_listeners(Listener.TRANS))
-      self.assertEqual([], controller.get_listeners(Listener.NATD))
-      self.assertEqual([], controller.get_listeners(Listener.DNS))
-
-      if test.runner.Torrc.PORT in runner.get_options():
-        self.assertEqual([('127.0.0.1', test.runner.CONTROL_PORT)], controller.get_listeners(Listener.CONTROL))
-      else:
-        self.assertEqual([], controller.get_listeners(Listener.CONTROL))
 
   @require_controller
   def test_get_socks_listeners(self):
