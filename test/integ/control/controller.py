@@ -303,6 +303,190 @@ class TestStatusAccessors(unittest.TestCase):
 
       self.assertEqual(tuple(auth_methods), protocolinfo.auth_methods)
 
+class TestDescriptorAccessors(unittest.TestCase):
+    """
+    Test methods that return descriptors or router status entries
+    """
+  @require_controller
+  @require_online
+  @require_version(Requirement.MICRODESCRIPTOR_IS_DEFAULT)
+  def test_get_microdescriptor(self):
+    """
+    Basic checks for get_microdescriptor().
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      # we should balk at invalid content
+      self.assertRaises(ValueError, controller.get_microdescriptor, '')
+      self.assertRaises(ValueError, controller.get_microdescriptor, 5)
+      self.assertRaises(ValueError, controller.get_microdescriptor, 'z' * 30)
+
+      # try with a relay that doesn't exist
+      self.assertRaises(stem.ControllerError, controller.get_microdescriptor, 'blargg')
+      self.assertRaises(stem.ControllerError, controller.get_microdescriptor, '5' * 40)
+
+      test_relay = self._get_router_status_entry(controller)
+
+      md_by_fingerprint = controller.get_microdescriptor(test_relay.fingerprint)
+      md_by_nickname = controller.get_microdescriptor(test_relay.nickname)
+
+      self.assertEqual(md_by_fingerprint, md_by_nickname)
+
+  @require_controller
+  def test_get_microdescriptors(self):
+    """
+    Fetches a few descriptors via the get_microdescriptors() method.
+    """
+
+    runner = test.runner.get_runner()
+
+    if not os.path.exists(runner.get_test_dir('cached-descriptors')):
+      test.runner.skip(self, '(no cached microdescriptors)')
+      return
+
+    with runner.get_tor_controller() as controller:
+      count = 0
+
+      for desc in controller.get_microdescriptors():
+        self.assertTrue(desc.onion_key is not None)
+
+        count += 1
+        if count > 10:
+          break
+
+  @require_controller
+  def test_get_server_descriptor(self):
+    """
+    Basic checks for get_server_descriptor().
+    """
+
+    runner = test.runner.get_runner()
+
+    if runner.get_tor_version() >= Requirement.MICRODESCRIPTOR_IS_DEFAULT:
+      test.runner.skip(self, '(requires server descriptors)')
+      return
+
+    with runner.get_tor_controller() as controller:
+      # we should balk at invalid content
+      self.assertRaises(ValueError, controller.get_server_descriptor, None)
+      self.assertRaises(ValueError, controller.get_server_descriptor, '')
+      self.assertRaises(ValueError, controller.get_server_descriptor, 5)
+      self.assertRaises(ValueError, controller.get_server_descriptor, 'z' * 30)
+
+      # try with a relay that doesn't exist
+      self.assertRaises(stem.ControllerError, controller.get_server_descriptor, 'blargg')
+      self.assertRaises(stem.ControllerError, controller.get_server_descriptor, '5' * 40)
+
+      test_relay = self._get_router_status_entry(controller)
+
+      desc_by_fingerprint = controller.get_server_descriptor(test_relay.fingerprint)
+      desc_by_nickname = controller.get_server_descriptor(test_relay.nickname)
+
+      self.assertEqual(desc_by_fingerprint, desc_by_nickname)
+
+  @require_controller
+  def test_get_server_descriptors(self):
+    """
+    Fetches a few descriptors via the get_server_descriptors() method.
+    """
+
+    runner = test.runner.get_runner()
+
+    if runner.get_tor_version() >= Requirement.MICRODESCRIPTOR_IS_DEFAULT:
+      test.runner.skip(self, '(requires server descriptors)')
+      return
+
+    with runner.get_tor_controller() as controller:
+      count = 0
+
+      for desc in controller.get_server_descriptors():
+        self.assertTrue(desc.fingerprint is not None)
+        self.assertTrue(desc.nickname is not None)
+
+        # Se don't want to take the time to read the whole thing. We already
+        # have another test that reads the full cached descriptors (and takes a
+        # while to do so).
+
+        count += 1
+        if count > 10:
+          break
+
+  @require_controller
+  @require_online
+  def test_get_network_status(self):
+    """
+    Basic checks for get_network_status().
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      # we should balk at invalid content
+      self.assertRaises(ValueError, controller.get_network_status, '')
+      self.assertRaises(ValueError, controller.get_network_status, 5)
+      self.assertRaises(ValueError, controller.get_network_status, 'z' * 30)
+
+      # try with a relay that doesn't exist
+      self.assertRaises(stem.ControllerError, controller.get_network_status, 'blargg')
+      self.assertRaises(stem.ControllerError, controller.get_network_status, '5' * 40)
+
+      test_relay = self._get_router_status_entry(controller)
+
+      desc_by_fingerprint = controller.get_network_status(test_relay.fingerprint)
+      desc_by_nickname = controller.get_network_status(test_relay.nickname)
+
+      self.assertEqual(desc_by_fingerprint, desc_by_nickname)
+
+  @require_controller
+  @require_online
+  def test_get_network_statuses(self):
+    """
+    Fetches a few descriptors via the get_network_statuses() method.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      count = 0
+
+      for desc in controller.get_network_statuses():
+        self.assertTrue(desc.fingerprint is not None)
+        self.assertTrue(desc.nickname is not None)
+
+        for line in desc.get_unrecognized_lines():
+          register_new_capability('Consensus Line', line)
+
+        count += 1
+        if count > 10:
+          break
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.HSFETCH)
+  def test_get_hidden_service_descriptor(self):
+    """
+    Fetches a few descriptors via the get_hidden_service_descriptor() method.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      # fetch the descriptor for DuckDuckGo
+
+      desc = controller.get_hidden_service_descriptor('3g2upl4pq6kufc4m.onion')
+      self.assertTrue('MIGJAoGBAJ' in desc.permanent_key)
+
+      # try to fetch something that doesn't exist
+
+      try:
+        desc = controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g3')
+        self.fail("Didn't expect m4cfuk6qp4lpu2g3.onion to exist, but provided: %s" % desc)
+      except stem.DescriptorUnavailable as exc:
+        self.assertEqual('No running hidden service at m4cfuk6qp4lpu2g3.onion', str(exc))
+
+      # ... but shouldn't fail if we have a default argument or aren't awaiting the descriptor
+
+      self.assertEqual('pop goes the weasel', controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', 'pop goes the weasel'))
+      self.assertEqual(None, controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', await_result = False))
+
 class TestController(unittest.TestCase):
   @only_run_once
   @require_controller
@@ -1120,186 +1304,6 @@ class TestController(unittest.TestCase):
 
       ip_addr = response[response.find(b'\r\n\r\n'):].strip()
       self.assertTrue(stem.util.connection.is_valid_ipv4_address(stem.util.str_tools._to_unicode(ip_addr)), "'%s' isn't an address" % ip_addr)
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.MICRODESCRIPTOR_IS_DEFAULT)
-  def test_get_microdescriptor(self):
-    """
-    Basic checks for get_microdescriptor().
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      # we should balk at invalid content
-      self.assertRaises(ValueError, controller.get_microdescriptor, '')
-      self.assertRaises(ValueError, controller.get_microdescriptor, 5)
-      self.assertRaises(ValueError, controller.get_microdescriptor, 'z' * 30)
-
-      # try with a relay that doesn't exist
-      self.assertRaises(stem.ControllerError, controller.get_microdescriptor, 'blargg')
-      self.assertRaises(stem.ControllerError, controller.get_microdescriptor, '5' * 40)
-
-      test_relay = self._get_router_status_entry(controller)
-
-      md_by_fingerprint = controller.get_microdescriptor(test_relay.fingerprint)
-      md_by_nickname = controller.get_microdescriptor(test_relay.nickname)
-
-      self.assertEqual(md_by_fingerprint, md_by_nickname)
-
-  @require_controller
-  def test_get_microdescriptors(self):
-    """
-    Fetches a few descriptors via the get_microdescriptors() method.
-    """
-
-    runner = test.runner.get_runner()
-
-    if not os.path.exists(runner.get_test_dir('cached-descriptors')):
-      test.runner.skip(self, '(no cached microdescriptors)')
-      return
-
-    with runner.get_tor_controller() as controller:
-      count = 0
-
-      for desc in controller.get_microdescriptors():
-        self.assertTrue(desc.onion_key is not None)
-
-        count += 1
-        if count > 10:
-          break
-
-  @require_controller
-  def test_get_server_descriptor(self):
-    """
-    Basic checks for get_server_descriptor().
-    """
-
-    runner = test.runner.get_runner()
-
-    if runner.get_tor_version() >= Requirement.MICRODESCRIPTOR_IS_DEFAULT:
-      test.runner.skip(self, '(requires server descriptors)')
-      return
-
-    with runner.get_tor_controller() as controller:
-      # we should balk at invalid content
-      self.assertRaises(ValueError, controller.get_server_descriptor, None)
-      self.assertRaises(ValueError, controller.get_server_descriptor, '')
-      self.assertRaises(ValueError, controller.get_server_descriptor, 5)
-      self.assertRaises(ValueError, controller.get_server_descriptor, 'z' * 30)
-
-      # try with a relay that doesn't exist
-      self.assertRaises(stem.ControllerError, controller.get_server_descriptor, 'blargg')
-      self.assertRaises(stem.ControllerError, controller.get_server_descriptor, '5' * 40)
-
-      test_relay = self._get_router_status_entry(controller)
-
-      desc_by_fingerprint = controller.get_server_descriptor(test_relay.fingerprint)
-      desc_by_nickname = controller.get_server_descriptor(test_relay.nickname)
-
-      self.assertEqual(desc_by_fingerprint, desc_by_nickname)
-
-  @require_controller
-  def test_get_server_descriptors(self):
-    """
-    Fetches a few descriptors via the get_server_descriptors() method.
-    """
-
-    runner = test.runner.get_runner()
-
-    if runner.get_tor_version() >= Requirement.MICRODESCRIPTOR_IS_DEFAULT:
-      test.runner.skip(self, '(requires server descriptors)')
-      return
-
-    with runner.get_tor_controller() as controller:
-      count = 0
-
-      for desc in controller.get_server_descriptors():
-        self.assertTrue(desc.fingerprint is not None)
-        self.assertTrue(desc.nickname is not None)
-
-        # Se don't want to take the time to read the whole thing. We already
-        # have another test that reads the full cached descriptors (and takes a
-        # while to do so).
-
-        count += 1
-        if count > 10:
-          break
-
-  @require_controller
-  @require_online
-  def test_get_network_status(self):
-    """
-    Basic checks for get_network_status().
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      # we should balk at invalid content
-      self.assertRaises(ValueError, controller.get_network_status, '')
-      self.assertRaises(ValueError, controller.get_network_status, 5)
-      self.assertRaises(ValueError, controller.get_network_status, 'z' * 30)
-
-      # try with a relay that doesn't exist
-      self.assertRaises(stem.ControllerError, controller.get_network_status, 'blargg')
-      self.assertRaises(stem.ControllerError, controller.get_network_status, '5' * 40)
-
-      test_relay = self._get_router_status_entry(controller)
-
-      desc_by_fingerprint = controller.get_network_status(test_relay.fingerprint)
-      desc_by_nickname = controller.get_network_status(test_relay.nickname)
-
-      self.assertEqual(desc_by_fingerprint, desc_by_nickname)
-
-  @require_controller
-  @require_online
-  def test_get_network_statuses(self):
-    """
-    Fetches a few descriptors via the get_network_statuses() method.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      count = 0
-
-      for desc in controller.get_network_statuses():
-        self.assertTrue(desc.fingerprint is not None)
-        self.assertTrue(desc.nickname is not None)
-
-        for line in desc.get_unrecognized_lines():
-          register_new_capability('Consensus Line', line)
-
-        count += 1
-        if count > 10:
-          break
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.HSFETCH)
-  def test_get_hidden_service_descriptor(self):
-    """
-    Fetches a few descriptors via the get_hidden_service_descriptor() method.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      # fetch the descriptor for DuckDuckGo
-
-      desc = controller.get_hidden_service_descriptor('3g2upl4pq6kufc4m.onion')
-      self.assertTrue('MIGJAoGBAJ' in desc.permanent_key)
-
-      # try to fetch something that doesn't exist
-
-      try:
-        desc = controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g3')
-        self.fail("Didn't expect m4cfuk6qp4lpu2g3.onion to exist, but provided: %s" % desc)
-      except stem.DescriptorUnavailable as exc:
-        self.assertEqual('No running hidden service at m4cfuk6qp4lpu2g3.onion', str(exc))
-
-      # ... but shouldn't fail if we have a default argument or aren't awaiting the descriptor
-
-      self.assertEqual('pop goes the weasel', controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', 'pop goes the weasel'))
-      self.assertEqual(None, controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', await_result = False))
 
   @require_controller
   @require_online
