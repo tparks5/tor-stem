@@ -487,6 +487,175 @@ class TestDescriptorAccessors(unittest.TestCase):
       self.assertEqual('pop goes the weasel', controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', 'pop goes the weasel'))
       self.assertEqual(None, controller.get_hidden_service_descriptor('m4cfuk6qp4lpu2g5', await_result = False))
 
+class TestConfOptions(unittest.TestCase):
+  """
+  Test commands that manage Tor configuration options, like get_conf 
+  """
+
+  @require_controller
+  def test_getconf(self):
+    """
+    Exercises GETCONF with valid and invalid queries.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      control_socket = controller.get_socket()
+
+      if isinstance(control_socket, stem.socket.ControlPort):
+        connection_value = str(control_socket.get_port())
+        config_key = 'ControlPort'
+      elif isinstance(control_socket, stem.socket.ControlSocketFile):
+        connection_value = str(control_socket.get_socket_path())
+        config_key = 'ControlSocket'
+
+      # successful single query
+      self.assertEqual(connection_value, controller.get_conf(config_key))
+      self.assertEqual(connection_value, controller.get_conf(config_key, 'la-di-dah'))
+
+      # succeessful batch query
+      expected = {config_key: [connection_value]}
+      self.assertEqual(expected, controller.get_conf_map([config_key]))
+      self.assertEqual(expected, controller.get_conf_map([config_key], 'la-di-dah'))
+
+      request_params = ['ControlPORT', 'dirport', 'datadirectory']
+      reply_params = controller.get_conf_map(request_params, multiple=False).keys()
+      self.assertEqual(set(request_params), set(reply_params))
+
+      # queries an option that is unset
+
+      self.assertEqual(None, controller.get_conf('HTTPSProxy'))
+      self.assertEqual('la-di-dah', controller.get_conf('HTTPSProxy', 'la-di-dah'))
+      self.assertEqual([], controller.get_conf('HTTPSProxy', [], multiple = True))
+
+      # non-existant option(s)
+      self.assertRaises(stem.InvalidArguments, controller.get_conf, 'blarg')
+      self.assertEqual('la-di-dah', controller.get_conf('blarg', 'la-di-dah'))
+      self.assertRaises(stem.InvalidArguments, controller.get_conf_map, 'blarg')
+      self.assertEqual({'blarg': 'la-di-dah'}, controller.get_conf_map('blarg', 'la-di-dah'))
+
+      self.assertRaises(stem.InvalidRequest, controller.get_conf_map, ['blarg', 'huadf'], multiple = True)
+      self.assertEqual({'erfusdj': 'la-di-dah', 'afiafj': 'la-di-dah'}, controller.get_conf_map(['erfusdj', 'afiafj'], 'la-di-dah', multiple = True))
+
+      # multivalue configuration keys
+      nodefamilies = [('abc', 'xyz', 'pqrs'), ('mno', 'tuv', 'wxyz')]
+      controller.msg('SETCONF %s' % ' '.join(['nodefamily="' + ','.join(x) + '"' for x in nodefamilies]))
+      self.assertEqual([','.join(n) for n in nodefamilies], controller.get_conf('nodefamily', multiple = True))
+      controller.msg('RESETCONF NodeFamily')
+
+      # empty input
+      self.assertEqual(None, controller.get_conf(''))
+      self.assertEqual({}, controller.get_conf_map([]))
+      self.assertEqual({}, controller.get_conf_map(['']))
+      self.assertEqual(None, controller.get_conf('          '))
+      self.assertEqual({}, controller.get_conf_map(['    ', '        ']))
+
+      self.assertEqual('la-di-dah', controller.get_conf('', 'la-di-dah'))
+      self.assertEqual({}, controller.get_conf_map('', 'la-di-dah'))
+      self.assertEqual({}, controller.get_conf_map([], 'la-di-dah'))
+
+  @require_controller
+  def test_is_set(self):
+    """
+    Exercises our is_set() method.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      custom_options = controller._get_custom_options()
+      self.assertTrue('ControlPort' in custom_options or 'ControlSocket' in custom_options)
+      self.assertEqual('1', custom_options['DownloadExtraInfo'])
+      self.assertEqual('127.0.0.1:1112', custom_options['SocksListenAddress'])
+
+      self.assertTrue(controller.is_set('DownloadExtraInfo'))
+      self.assertTrue(controller.is_set('SocksListenAddress'))
+      self.assertFalse(controller.is_set('CellStatistics'))
+      self.assertFalse(controller.is_set('ConnLimit'))
+
+      # check we update when setting and resetting values
+
+      controller.set_conf('ConnLimit', '1005')
+      self.assertTrue(controller.is_set('ConnLimit'))
+
+      controller.reset_conf('ConnLimit')
+      self.assertFalse(controller.is_set('ConnLimit'))
+
+  @require_controller
+  def test_set_conf(self):
+    """
+    Exercises set_conf(), reset_conf(), and set_options() methods with valid
+    and invalid requests.
+    """
+
+    runner = test.runner.get_runner()
+    tmpdir = tempfile.mkdtemp()
+
+    with runner.get_tor_controller() as controller:
+      try:
+        # successfully set a single option
+        connlimit = int(controller.get_conf('ConnLimit'))
+        controller.set_conf('connlimit', str(connlimit - 1))
+        self.assertEqual(connlimit - 1, int(controller.get_conf('ConnLimit')))
+
+        # successfully set a single list option
+        exit_policy = ['accept *:7777', 'reject *:*']
+        controller.set_conf('ExitPolicy', exit_policy)
+        self.assertEqual(exit_policy, controller.get_conf('ExitPolicy', multiple = True))
+
+        # fail to set a single option
+        try:
+          controller.set_conf('invalidkeyboo', 'abcde')
+          self.fail()
+        except stem.InvalidArguments as exc:
+          self.assertEqual(['invalidkeyboo'], exc.arguments)
+
+        # resets configuration parameters
+        controller.reset_conf('ConnLimit', 'ExitPolicy')
+        self.assertEqual(connlimit, int(controller.get_conf('ConnLimit')))
+        self.assertEqual(None, controller.get_conf('ExitPolicy'))
+
+        # successfully sets multiple config options
+        controller.set_options({
+          'connlimit': str(connlimit - 2),
+          'contactinfo': 'stem@testing',
+        })
+
+        self.assertEqual(connlimit - 2, int(controller.get_conf('ConnLimit')))
+        self.assertEqual('stem@testing', controller.get_conf('contactinfo'))
+
+        # fail to set multiple config options
+        try:
+          controller.set_options({
+            'contactinfo': 'stem@testing',
+            'bombay': 'vadapav',
+          })
+          self.fail()
+        except stem.InvalidArguments as exc:
+          self.assertEqual(['bombay'], exc.arguments)
+
+        # context-sensitive keys (the only retched things for which order matters)
+        controller.set_options((
+          ('HiddenServiceDir', tmpdir),
+          ('HiddenServicePort', '17234 127.0.0.1:17235'),
+        ))
+
+        self.assertEqual(tmpdir, controller.get_conf('HiddenServiceDir'))
+        self.assertEqual('17234 127.0.0.1:17235', controller.get_conf('HiddenServicePort'))
+      finally:
+        # reverts configuration changes
+        controller.set_options((
+          ('ExitPolicy', 'reject *:*'),
+          ('ConnLimit', None),
+          ('ContactInfo', None),
+          ('HiddenServiceDir', None),
+          ('HiddenServicePort', None),
+        ), reset = True)
+
+        shutil.rmtree(tmpdir)
+
+# God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
   @require_controller
@@ -611,95 +780,6 @@ class TestController(unittest.TestCase):
 
 
 
-  @require_controller
-  def test_getconf(self):
-    """
-    Exercises GETCONF with valid and invalid queries.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      control_socket = controller.get_socket()
-
-      if isinstance(control_socket, stem.socket.ControlPort):
-        connection_value = str(control_socket.get_port())
-        config_key = 'ControlPort'
-      elif isinstance(control_socket, stem.socket.ControlSocketFile):
-        connection_value = str(control_socket.get_socket_path())
-        config_key = 'ControlSocket'
-
-      # successful single query
-      self.assertEqual(connection_value, controller.get_conf(config_key))
-      self.assertEqual(connection_value, controller.get_conf(config_key, 'la-di-dah'))
-
-      # succeessful batch query
-      expected = {config_key: [connection_value]}
-      self.assertEqual(expected, controller.get_conf_map([config_key]))
-      self.assertEqual(expected, controller.get_conf_map([config_key], 'la-di-dah'))
-
-      request_params = ['ControlPORT', 'dirport', 'datadirectory']
-      reply_params = controller.get_conf_map(request_params, multiple=False).keys()
-      self.assertEqual(set(request_params), set(reply_params))
-
-      # queries an option that is unset
-
-      self.assertEqual(None, controller.get_conf('HTTPSProxy'))
-      self.assertEqual('la-di-dah', controller.get_conf('HTTPSProxy', 'la-di-dah'))
-      self.assertEqual([], controller.get_conf('HTTPSProxy', [], multiple = True))
-
-      # non-existant option(s)
-      self.assertRaises(stem.InvalidArguments, controller.get_conf, 'blarg')
-      self.assertEqual('la-di-dah', controller.get_conf('blarg', 'la-di-dah'))
-      self.assertRaises(stem.InvalidArguments, controller.get_conf_map, 'blarg')
-      self.assertEqual({'blarg': 'la-di-dah'}, controller.get_conf_map('blarg', 'la-di-dah'))
-
-      self.assertRaises(stem.InvalidRequest, controller.get_conf_map, ['blarg', 'huadf'], multiple = True)
-      self.assertEqual({'erfusdj': 'la-di-dah', 'afiafj': 'la-di-dah'}, controller.get_conf_map(['erfusdj', 'afiafj'], 'la-di-dah', multiple = True))
-
-      # multivalue configuration keys
-      nodefamilies = [('abc', 'xyz', 'pqrs'), ('mno', 'tuv', 'wxyz')]
-      controller.msg('SETCONF %s' % ' '.join(['nodefamily="' + ','.join(x) + '"' for x in nodefamilies]))
-      self.assertEqual([','.join(n) for n in nodefamilies], controller.get_conf('nodefamily', multiple = True))
-      controller.msg('RESETCONF NodeFamily')
-
-      # empty input
-      self.assertEqual(None, controller.get_conf(''))
-      self.assertEqual({}, controller.get_conf_map([]))
-      self.assertEqual({}, controller.get_conf_map(['']))
-      self.assertEqual(None, controller.get_conf('          '))
-      self.assertEqual({}, controller.get_conf_map(['    ', '        ']))
-
-      self.assertEqual('la-di-dah', controller.get_conf('', 'la-di-dah'))
-      self.assertEqual({}, controller.get_conf_map('', 'la-di-dah'))
-      self.assertEqual({}, controller.get_conf_map([], 'la-di-dah'))
-
-  @require_controller
-  def test_is_set(self):
-    """
-    Exercises our is_set() method.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      custom_options = controller._get_custom_options()
-      self.assertTrue('ControlPort' in custom_options or 'ControlSocket' in custom_options)
-      self.assertEqual('1', custom_options['DownloadExtraInfo'])
-      self.assertEqual('127.0.0.1:1112', custom_options['SocksListenAddress'])
-
-      self.assertTrue(controller.is_set('DownloadExtraInfo'))
-      self.assertTrue(controller.is_set('SocksListenAddress'))
-      self.assertFalse(controller.is_set('CellStatistics'))
-      self.assertFalse(controller.is_set('ConnLimit'))
-
-      # check we update when setting and resetting values
-
-      controller.set_conf('ConnLimit', '1005')
-      self.assertTrue(controller.is_set('ConnLimit'))
-
-      controller.reset_conf('ConnLimit')
-      self.assertFalse(controller.is_set('ConnLimit'))
 
   @require_controller
   def test_hidden_services_conf(self):
@@ -946,78 +1026,6 @@ class TestController(unittest.TestCase):
       self.assertEqual([response.service_id], controller.list_ephemeral_hidden_services(detached = True))
       controller.remove_ephemeral_hidden_service(response.service_id)
 
-  @require_controller
-  def test_set_conf(self):
-    """
-    Exercises set_conf(), reset_conf(), and set_options() methods with valid
-    and invalid requests.
-    """
-
-    runner = test.runner.get_runner()
-    tmpdir = tempfile.mkdtemp()
-
-    with runner.get_tor_controller() as controller:
-      try:
-        # successfully set a single option
-        connlimit = int(controller.get_conf('ConnLimit'))
-        controller.set_conf('connlimit', str(connlimit - 1))
-        self.assertEqual(connlimit - 1, int(controller.get_conf('ConnLimit')))
-
-        # successfully set a single list option
-        exit_policy = ['accept *:7777', 'reject *:*']
-        controller.set_conf('ExitPolicy', exit_policy)
-        self.assertEqual(exit_policy, controller.get_conf('ExitPolicy', multiple = True))
-
-        # fail to set a single option
-        try:
-          controller.set_conf('invalidkeyboo', 'abcde')
-          self.fail()
-        except stem.InvalidArguments as exc:
-          self.assertEqual(['invalidkeyboo'], exc.arguments)
-
-        # resets configuration parameters
-        controller.reset_conf('ConnLimit', 'ExitPolicy')
-        self.assertEqual(connlimit, int(controller.get_conf('ConnLimit')))
-        self.assertEqual(None, controller.get_conf('ExitPolicy'))
-
-        # successfully sets multiple config options
-        controller.set_options({
-          'connlimit': str(connlimit - 2),
-          'contactinfo': 'stem@testing',
-        })
-
-        self.assertEqual(connlimit - 2, int(controller.get_conf('ConnLimit')))
-        self.assertEqual('stem@testing', controller.get_conf('contactinfo'))
-
-        # fail to set multiple config options
-        try:
-          controller.set_options({
-            'contactinfo': 'stem@testing',
-            'bombay': 'vadapav',
-          })
-          self.fail()
-        except stem.InvalidArguments as exc:
-          self.assertEqual(['bombay'], exc.arguments)
-
-        # context-sensitive keys (the only retched things for which order matters)
-        controller.set_options((
-          ('HiddenServiceDir', tmpdir),
-          ('HiddenServicePort', '17234 127.0.0.1:17235'),
-        ))
-
-        self.assertEqual(tmpdir, controller.get_conf('HiddenServiceDir'))
-        self.assertEqual('17234 127.0.0.1:17235', controller.get_conf('HiddenServicePort'))
-      finally:
-        # reverts configuration changes
-        controller.set_options((
-          ('ExitPolicy', 'reject *:*'),
-          ('ConnLimit', None),
-          ('ContactInfo', None),
-          ('HiddenServiceDir', None),
-          ('HiddenServicePort', None),
-        ), reset = True)
-
-        shutil.rmtree(tmpdir)
 
   @require_controller
   @require_version(Requirement.LOADCONF)
