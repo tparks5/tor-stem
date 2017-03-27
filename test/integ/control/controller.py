@@ -911,6 +911,69 @@ class TestEphemeralServices(unittest.TestCase):
       self.assertEqual([response.service_id], controller.list_ephemeral_hidden_services(detached = True))
       controller.remove_ephemeral_hidden_service(response.service_id)
 
+class TestEventListeners(unittest.TestCase):
+  """
+  Test methods for adding and removing event listeners
+  """
+
+  @require_controller
+  def test_event_handling(self):
+    """
+    Add a couple listeners for various events and make sure that they receive
+    them. Then remove the listeners.
+    """
+
+    event_notice1, event_notice2 = threading.Event(), threading.Event()
+    event_buffer1, event_buffer2 = [], []
+
+    def listener1(event):
+      event_buffer1.append(event)
+      event_notice1.set()
+
+    def listener2(event):
+      event_buffer2.append(event)
+      event_notice2.set()
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      controller.add_event_listener(listener1, EventType.CONF_CHANGED)
+      controller.add_event_listener(listener2, EventType.CONF_CHANGED, EventType.DEBUG)
+
+      # The NodeFamily is a harmless option we can toggle
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+
+      # Wait for the event. Assert that we get it within 10 seconds
+      event_notice1.wait(10)
+      self.assertEqual(len(event_buffer1), 1)
+      event_notice1.clear()
+
+      event_notice2.wait(10)
+      self.assertTrue(len(event_buffer2) >= 1)
+      event_notice2.clear()
+
+      # Checking that a listener's no longer called after being removed.
+
+      controller.remove_event_listener(listener2)
+
+      buffer2_size = len(event_buffer2)
+
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+      event_notice1.wait(10)
+      self.assertEqual(len(event_buffer1), 2)
+      event_notice1.clear()
+
+      self.assertEqual(buffer2_size, len(event_buffer2))
+
+      for event in event_buffer1:
+        self.assertTrue(isinstance(event, stem.response.events.Event))
+        self.assertEqual(0, len(event.positional_args))
+        self.assertEqual({}, event.keyword_args)
+
+        self.assertTrue(isinstance(event, stem.response.events.ConfChangedEvent))
+
+      controller.reset_conf('NodeFamily')
+
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
@@ -973,64 +1036,6 @@ class TestController(unittest.TestCase):
       self.assertTrue(state_timestamp > before and state_timestamp < after)
 
       controller.reset_conf('__OwningControllerProcess')
-
-  @require_controller
-  def test_event_handling(self):
-    """
-    Add a couple listeners for various events and make sure that they receive
-    them. Then remove the listeners.
-    """
-
-    event_notice1, event_notice2 = threading.Event(), threading.Event()
-    event_buffer1, event_buffer2 = [], []
-
-    def listener1(event):
-      event_buffer1.append(event)
-      event_notice1.set()
-
-    def listener2(event):
-      event_buffer2.append(event)
-      event_notice2.set()
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      controller.add_event_listener(listener1, EventType.CONF_CHANGED)
-      controller.add_event_listener(listener2, EventType.CONF_CHANGED, EventType.DEBUG)
-
-      # The NodeFamily is a harmless option we can toggle
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-
-      # Wait for the event. Assert that we get it within 10 seconds
-      event_notice1.wait(10)
-      self.assertEqual(len(event_buffer1), 1)
-      event_notice1.clear()
-
-      event_notice2.wait(10)
-      self.assertTrue(len(event_buffer2) >= 1)
-      event_notice2.clear()
-
-      # Checking that a listener's no longer called after being removed.
-
-      controller.remove_event_listener(listener2)
-
-      buffer2_size = len(event_buffer2)
-
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-      event_notice1.wait(10)
-      self.assertEqual(len(event_buffer1), 2)
-      event_notice1.clear()
-
-      self.assertEqual(buffer2_size, len(event_buffer2))
-
-      for event in event_buffer1:
-        self.assertTrue(isinstance(event, stem.response.events.Event))
-        self.assertEqual(0, len(event.positional_args))
-        self.assertEqual({}, event.keyword_args)
-
-        self.assertTrue(isinstance(event, stem.response.events.ConfChangedEvent))
-
-      controller.reset_conf('NodeFamily')
 
 
 
