@@ -767,132 +767,11 @@ class TestHiddenServices(unittest.TestCase):
           except:
             pass
 
-
-# God class to be dismantled
-class TestController(unittest.TestCase):
-  @only_run_once
-  @require_controller
-  def test_missing_capabilities(self):
-    """
-    Check to see if tor supports any events, signals, or features that we
-    don't.
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      for event in controller.get_info('events/names').split():
-        if event not in EventType:
-          register_new_capability('Event', event)
-
-      for signal in controller.get_info('signal/names').split():
-        if signal not in Signal:
-          register_new_capability('Signal', signal)
-
-      # new features should simply be added to enable_feature()'s docs
-
-      for feature in controller.get_info('features/names').split():
-        if feature not in ('EXTENDED_EVENTS', 'VERBOSE_NAMES'):
-          register_new_capability('Feature', feature)
-
-
-  @require_controller
-  @require_version(Requirement.EVENT_SIGNAL)
-  def test_reset_notification(self):
-    """
-    Checks that a notificiation listener is... well, notified of SIGHUPs.
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      received_events = []
-
-      def status_listener(my_controller, state, timestamp):
-        received_events.append((my_controller, state, timestamp))
-
-      controller.add_status_listener(status_listener)
-
-      before = time.time()
-      controller.signal(Signal.HUP)
-
-      # I really hate adding a sleep here, but signal() is non-blocking.
-      while len(received_events) == 0:
-        if (time.time() - before) > 2:
-          self.fail("We've waited a couple seconds for SIGHUP to generate an event, but it didn't come")
-
-        time.sleep(0.001)
-
-      after = time.time()
-
-      self.assertEqual(1, len(received_events))
-
-      state_controller, state_type, state_timestamp = received_events[0]
-
-      self.assertEqual(controller, state_controller)
-      self.assertEqual(State.RESET, state_type)
-      self.assertTrue(state_timestamp > before and state_timestamp < after)
-
-      controller.reset_conf('__OwningControllerProcess')
-
-  @require_controller
-  def test_event_handling(self):
-    """
-    Add a couple listeners for various events and make sure that they receive
-    them. Then remove the listeners.
-    """
-
-    event_notice1, event_notice2 = threading.Event(), threading.Event()
-    event_buffer1, event_buffer2 = [], []
-
-    def listener1(event):
-      event_buffer1.append(event)
-      event_notice1.set()
-
-    def listener2(event):
-      event_buffer2.append(event)
-      event_notice2.set()
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      controller.add_event_listener(listener1, EventType.CONF_CHANGED)
-      controller.add_event_listener(listener2, EventType.CONF_CHANGED, EventType.DEBUG)
-
-      # The NodeFamily is a harmless option we can toggle
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-
-      # Wait for the event. Assert that we get it within 10 seconds
-      event_notice1.wait(10)
-      self.assertEqual(len(event_buffer1), 1)
-      event_notice1.clear()
-
-      event_notice2.wait(10)
-      self.assertTrue(len(event_buffer2) >= 1)
-      event_notice2.clear()
-
-      # Checking that a listener's no longer called after being removed.
-
-      controller.remove_event_listener(listener2)
-
-      buffer2_size = len(event_buffer2)
-
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-      event_notice1.wait(10)
-      self.assertEqual(len(event_buffer1), 2)
-      event_notice1.clear()
-
-      self.assertEqual(buffer2_size, len(event_buffer2))
-
-      for event in event_buffer1:
-        self.assertTrue(isinstance(event, stem.response.events.Event))
-        self.assertEqual(0, len(event.positional_args))
-        self.assertEqual({}, event.keyword_args)
-
-        self.assertTrue(isinstance(event, stem.response.events.ConfChangedEvent))
-
-      controller.reset_conf('NodeFamily')
-
-
-
-
-
+class TestEphemeralServices(unittest.TestCase):
+  """
+  Test ephemeral hidden service management functions, like 
+  create_ephemeral_hidden_service
+  """
 
   @require_controller
   @require_version(Requirement.ADD_ONION)
@@ -1031,6 +910,132 @@ class TestController(unittest.TestCase):
 
       self.assertEqual([response.service_id], controller.list_ephemeral_hidden_services(detached = True))
       controller.remove_ephemeral_hidden_service(response.service_id)
+
+# God class to be dismantled
+class TestController(unittest.TestCase):
+  @only_run_once
+  @require_controller
+  def test_missing_capabilities(self):
+    """
+    Check to see if tor supports any events, signals, or features that we
+    don't.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      for event in controller.get_info('events/names').split():
+        if event not in EventType:
+          register_new_capability('Event', event)
+
+      for signal in controller.get_info('signal/names').split():
+        if signal not in Signal:
+          register_new_capability('Signal', signal)
+
+      # new features should simply be added to enable_feature()'s docs
+
+      for feature in controller.get_info('features/names').split():
+        if feature not in ('EXTENDED_EVENTS', 'VERBOSE_NAMES'):
+          register_new_capability('Feature', feature)
+
+
+  @require_controller
+  @require_version(Requirement.EVENT_SIGNAL)
+  def test_reset_notification(self):
+    """
+    Checks that a notificiation listener is... well, notified of SIGHUPs.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      received_events = []
+
+      def status_listener(my_controller, state, timestamp):
+        received_events.append((my_controller, state, timestamp))
+
+      controller.add_status_listener(status_listener)
+
+      before = time.time()
+      controller.signal(Signal.HUP)
+
+      # I really hate adding a sleep here, but signal() is non-blocking.
+      while len(received_events) == 0:
+        if (time.time() - before) > 2:
+          self.fail("We've waited a couple seconds for SIGHUP to generate an event, but it didn't come")
+
+        time.sleep(0.001)
+
+      after = time.time()
+
+      self.assertEqual(1, len(received_events))
+
+      state_controller, state_type, state_timestamp = received_events[0]
+
+      self.assertEqual(controller, state_controller)
+      self.assertEqual(State.RESET, state_type)
+      self.assertTrue(state_timestamp > before and state_timestamp < after)
+
+      controller.reset_conf('__OwningControllerProcess')
+
+  @require_controller
+  def test_event_handling(self):
+    """
+    Add a couple listeners for various events and make sure that they receive
+    them. Then remove the listeners.
+    """
+
+    event_notice1, event_notice2 = threading.Event(), threading.Event()
+    event_buffer1, event_buffer2 = [], []
+
+    def listener1(event):
+      event_buffer1.append(event)
+      event_notice1.set()
+
+    def listener2(event):
+      event_buffer2.append(event)
+      event_notice2.set()
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      controller.add_event_listener(listener1, EventType.CONF_CHANGED)
+      controller.add_event_listener(listener2, EventType.CONF_CHANGED, EventType.DEBUG)
+
+      # The NodeFamily is a harmless option we can toggle
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+
+      # Wait for the event. Assert that we get it within 10 seconds
+      event_notice1.wait(10)
+      self.assertEqual(len(event_buffer1), 1)
+      event_notice1.clear()
+
+      event_notice2.wait(10)
+      self.assertTrue(len(event_buffer2) >= 1)
+      event_notice2.clear()
+
+      # Checking that a listener's no longer called after being removed.
+
+      controller.remove_event_listener(listener2)
+
+      buffer2_size = len(event_buffer2)
+
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+      event_notice1.wait(10)
+      self.assertEqual(len(event_buffer1), 2)
+      event_notice1.clear()
+
+      self.assertEqual(buffer2_size, len(event_buffer2))
+
+      for event in event_buffer1:
+        self.assertTrue(isinstance(event, stem.response.events.Event))
+        self.assertEqual(0, len(event.positional_args))
+        self.assertEqual({}, event.keyword_args)
+
+        self.assertTrue(isinstance(event, stem.response.events.ConfChangedEvent))
+
+      controller.reset_conf('NodeFamily')
+
+
+
+
+
 
 
   @require_controller
