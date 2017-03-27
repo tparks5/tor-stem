@@ -74,8 +74,8 @@ def parse(argv):
       args['tor_path'] = arg
     elif opt == '--no-color':
       args['disable_color'] = True
-    elif opt in ('-c','--cli'):
-      args['cli'] = True 
+    elif opt in ('-c', '--cli'):
+      args['cli'] = True
     elif opt in ('-h', '--help'):
       args['print_help'] = True
 

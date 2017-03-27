@@ -60,7 +60,7 @@ def main():
     print(stem.interpreter.arguments.get_help())
     sys.exit()
 
-  if args.disable_color or args.cli:  
+  if args.disable_color or args.cli:
     global PROMPT
     stem.util.term.DISABLE_COLOR_SUPPORT = True
 
@@ -75,7 +75,6 @@ def main():
   else:
       def verbose(output):
         print(output)
-
 
   # If the user isn't connecting to something in particular then offer to start
   # tor if it isn't running.
