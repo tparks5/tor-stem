@@ -156,5 +156,5 @@ def main():
         if response is not None:
           print(response)
       except (KeyboardInterrupt, EOFError, stem.SocketClosed) as exc:
-        print('')  # move cursor to the following line
+        verbose('')  # move cursor to the following line
         break
