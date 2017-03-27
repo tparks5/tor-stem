@@ -44,7 +44,7 @@ TEST_ROUTER_STATUS_ENTRY = None
 
 class TestControllerAttachment(unittest.TestCase):
   """
-  Test attaching controller to Tor by port and socket file
+  Test attaching controller to Tor by port and socket file.
   """
 
   def test_from_port(self):
@@ -71,7 +71,7 @@ class TestControllerAttachment(unittest.TestCase):
 
 class TestControllerAuth(unittest.TestCase):
   """
-  Test controller authenticate and reconnect methods 
+  Test controller authenticate and reconnect methods.
   """
   # there is a test for reattaching a controller, but not one that tests the
   # reconnect() method specificially.
@@ -131,7 +131,7 @@ class TestControllerAuth(unittest.TestCase):
 
 class TestStatusAccessors(unittest.TestCase):
   """
-  Test functions that return Tor's status, like get_info and get_exit_policy
+  Test functions that return Tor's status, like get_info and get_exit_policy.
   """
   # missing test cases: get_accounting_stats, get_user, get_pid, 
   # is_user_traffic_allowed
@@ -305,7 +305,7 @@ class TestStatusAccessors(unittest.TestCase):
 
 class TestDescriptorAccessors(unittest.TestCase):
     """
-    Test methods that return descriptors or router status entries
+    Test methods that return descriptors or router status entries.
     """
   @require_controller
   @require_online
@@ -489,7 +489,7 @@ class TestDescriptorAccessors(unittest.TestCase):
 
 class TestConfOptions(unittest.TestCase):
   """
-  Test commands that manage Tor configuration options, like get_conf 
+  Test commands that manage Tor configuration options, like get_conf.
   """
 
   @require_controller
@@ -657,7 +657,7 @@ class TestConfOptions(unittest.TestCase):
 
 class TestHiddenServices(unittest.TestCase):
   """
-  Test hidden service methods, like create_hidden_service  
+  Test hidden service methods, like create_hidden_service.
   """
   
   @require_controller
@@ -913,7 +913,7 @@ class TestEphemeralServices(unittest.TestCase):
 
 class TestEventListeners(unittest.TestCase):
   """
-  Test methods for adding and removing event listeners
+  Test methods for adding and removing event listeners.
   """
 
   @require_controller
@@ -976,14 +976,14 @@ class TestEventListeners(unittest.TestCase):
 
 class TestCaching(unittest.TestCase):
   """
-  Test cache management commands, like clear_cache
+  Test cache management commands, like clear_cache.
   """
   # Note that is_caching_enabled, set_caching, clear_cache have no tests
   pass 
 
 class TestConfFiles(unittest.TestCase):
   """
-  Test torrc operations load_conf and set_conf
+  Test torrc operations load_conf and set_conf.
   """
 
   @require_controller
@@ -1043,6 +1043,11 @@ class TestConfFiles(unittest.TestCase):
         controller.load_conf(oldconf)
         controller.save_conf()
         controller.reset_conf('__OwningControllerProcess')
+
+class TestFeatureCommands(unittest.TestCase):
+  """
+  Test controller feature management commands, like enable_feature.
+  """
 
 # God class to be dismantled
 class TestController(unittest.TestCase):
