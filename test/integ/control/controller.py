@@ -129,9 +129,9 @@ class TestControllerAuth(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
-class TestStatusAccessors(unittest.TestCase):
+class TestStatusCommands(unittest.TestCase):
   """
-  Test functions that return Tor's status, like get_info and get_exit_policy.
+  Test methods that return Tor's status, like get_info and get_exit_policy.
   """
   # missing test cases: get_accounting_stats, get_user, get_pid, 
   # is_user_traffic_allowed
@@ -303,10 +303,10 @@ class TestStatusAccessors(unittest.TestCase):
 
       self.assertEqual(tuple(auth_methods), protocolinfo.auth_methods)
 
-class TestDescriptorAccessors(unittest.TestCase):
-    """
-    Test methods that return descriptors or router status entries.
-    """
+class TestDescriptorCommands(unittest.TestCase):
+  """
+  Test methods that return descriptors or router status entries.
+  """
   @require_controller
   @require_online
   @require_version(Requirement.MICRODESCRIPTOR_IS_DEFAULT)
@@ -1131,7 +1131,7 @@ class TestFeatureCommands(unittest.TestCase):
       else:
         self.fail()
 
-class TestCircuitManagment(unittest.TestCase):
+class TestCircuitManagement(unittest.TestCase):
   """
   Test opening, closing, and modifying Tor circuits.
   """
