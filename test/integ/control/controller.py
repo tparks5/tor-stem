@@ -981,6 +981,69 @@ class TestCaching(unittest.TestCase):
   # Note that is_caching_enabled, set_caching, clear_cache have no tests
   pass 
 
+class TestConfFiles(unittest.TestCase):
+  """
+  Test torrc operations load_conf and set_conf
+  """
+
+  @require_controller
+  @require_version(Requirement.LOADCONF)
+  def test_loadconf(self):
+    """
+    Exercises Controller.load_conf with valid and invalid requests.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      oldconf = runner.get_torrc_contents()
+
+      try:
+        # Check a request that changes our DataDir. Tor should rightfully balk
+        # at this...
+        #
+        #   InvalidRequest: Transition not allowed: Failed to parse/validate
+        #   config: While Tor is running, changing DataDirectory
+        #   ("/home/atagar/Desktop/stem/test/data"->"/home/atagar/.tor") is not
+        #   allowed.
+
+        self.assertRaises(stem.InvalidRequest, controller.load_conf, 'ContactInfo confloaded')
+
+        try:
+          controller.load_conf('Blahblah blah')
+          self.fail()
+        except stem.InvalidArguments as exc:
+          self.assertEqual(['Blahblah'], exc.arguments)
+
+        # valid config
+
+        controller.load_conf(runner.get_torrc_contents() + '\nContactInfo confloaded\n')
+        self.assertEqual('confloaded', controller.get_conf('ContactInfo'))
+      finally:
+        # reload original valid config
+        controller.load_conf(oldconf)
+        controller.reset_conf('__OwningControllerProcess')
+
+  @require_controller
+  def test_saveconf(self):
+    runner = test.runner.get_runner()
+
+    # only testing for success, since we need to run out of disk space to test
+    # for failure
+    with runner.get_tor_controller() as controller:
+      oldconf = runner.get_torrc_contents()
+
+      try:
+        controller.set_conf('ContactInfo', 'confsaved')
+        controller.save_conf()
+
+        with open(runner.get_torrc_path()) as torrcfile:
+          self.assertTrue('\nContactInfo confsaved\n' in torrcfile.read())
+      finally:
+        controller.load_conf(oldconf)
+        controller.save_conf()
+        controller.reset_conf('__OwningControllerProcess')
+
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
@@ -1050,63 +1113,6 @@ class TestController(unittest.TestCase):
 
 
 
-  @require_controller
-  @require_version(Requirement.LOADCONF)
-  def test_loadconf(self):
-    """
-    Exercises Controller.load_conf with valid and invalid requests.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      oldconf = runner.get_torrc_contents()
-
-      try:
-        # Check a request that changes our DataDir. Tor should rightfully balk
-        # at this...
-        #
-        #   InvalidRequest: Transition not allowed: Failed to parse/validate
-        #   config: While Tor is running, changing DataDirectory
-        #   ("/home/atagar/Desktop/stem/test/data"->"/home/atagar/.tor") is not
-        #   allowed.
-
-        self.assertRaises(stem.InvalidRequest, controller.load_conf, 'ContactInfo confloaded')
-
-        try:
-          controller.load_conf('Blahblah blah')
-          self.fail()
-        except stem.InvalidArguments as exc:
-          self.assertEqual(['Blahblah'], exc.arguments)
-
-        # valid config
-
-        controller.load_conf(runner.get_torrc_contents() + '\nContactInfo confloaded\n')
-        self.assertEqual('confloaded', controller.get_conf('ContactInfo'))
-      finally:
-        # reload original valid config
-        controller.load_conf(oldconf)
-        controller.reset_conf('__OwningControllerProcess')
-
-  @require_controller
-  def test_saveconf(self):
-    runner = test.runner.get_runner()
-
-    # only testing for success, since we need to run out of disk space to test
-    # for failure
-    with runner.get_tor_controller() as controller:
-      oldconf = runner.get_torrc_contents()
-
-      try:
-        controller.set_conf('ContactInfo', 'confsaved')
-        controller.save_conf()
-
-        with open(runner.get_torrc_path()) as torrcfile:
-          self.assertTrue('\nContactInfo confsaved\n' in torrcfile.read())
-      finally:
-        controller.load_conf(oldconf)
-        controller.save_conf()
-        controller.reset_conf('__OwningControllerProcess')
 
   @require_controller
   def test_get_socks_listeners(self):
