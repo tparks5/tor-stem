@@ -42,6 +42,33 @@ from test.runner import (
 TEST_ROUTER_STATUS_ENTRY = None
 
 
+class TestControllerAttachment(unittest.TestCase):
+  """
+  Test attaching controller to Tor by port and socket file
+  """
+
+  def test_from_port(self):
+    """
+    Basic sanity check for the from_port constructor.
+    """
+
+    if test.runner.Torrc.PORT in test.runner.get_runner().get_options():
+      with stem.control.Controller.from_port(port = test.runner.CONTROL_PORT) as controller:
+        self.assertTrue(isinstance(controller, stem.control.Controller))
+    else:
+      self.assertRaises(stem.SocketError, stem.control.Controller.from_port, '127.0.0.1', test.runner.CONTROL_PORT)
+
+  def test_from_socket_file(self):
+    """
+    Basic sanity check for the from_socket_file constructor.
+    """
+
+    if test.runner.Torrc.SOCKET in test.runner.get_runner().get_options():
+      with stem.control.Controller.from_socket_file(path = test.runner.CONTROL_SOCKET_PATH) as controller:
+        self.assertTrue(isinstance(controller, stem.control.Controller))
+    else:
+      self.assertRaises(stem.SocketError, stem.control.Controller.from_socket_file, test.runner.CONTROL_SOCKET_PATH)
+
 class TestGetStatuses(unittest.TestCase):
   """
   Test functions that return Tor's status, like get_info and get_exit_policy
@@ -240,27 +267,6 @@ class TestController(unittest.TestCase):
         if feature not in ('EXTENDED_EVENTS', 'VERBOSE_NAMES'):
           register_new_capability('Feature', feature)
 
-  def test_from_port(self):
-    """
-    Basic sanity check for the from_port constructor.
-    """
-
-    if test.runner.Torrc.PORT in test.runner.get_runner().get_options():
-      with stem.control.Controller.from_port(port = test.runner.CONTROL_PORT) as controller:
-        self.assertTrue(isinstance(controller, stem.control.Controller))
-    else:
-      self.assertRaises(stem.SocketError, stem.control.Controller.from_port, '127.0.0.1', test.runner.CONTROL_PORT)
-
-  def test_from_socket_file(self):
-    """
-    Basic sanity check for the from_socket_file constructor.
-    """
-
-    if test.runner.Torrc.SOCKET in test.runner.get_runner().get_options():
-      with stem.control.Controller.from_socket_file(path = test.runner.CONTROL_SOCKET_PATH) as controller:
-        self.assertTrue(isinstance(controller, stem.control.Controller))
-    else:
-      self.assertRaises(stem.SocketError, stem.control.Controller.from_socket_file, test.runner.CONTROL_SOCKET_PATH)
 
   @require_controller
   @require_version(Requirement.EVENT_SIGNAL)
