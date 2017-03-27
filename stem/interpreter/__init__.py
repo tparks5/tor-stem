@@ -65,6 +65,15 @@ def main():
     stem.util.term.DISABLE_COLOR_SUPPORT = True
     PROMPT = '>>> '
 
+  if args.cli:
+      def verbose(*output):
+        pass
+  else:
+      def verbose(*output):
+          for arg in output:
+            print(arg)
+
+
   # If the user isn't connecting to something in particular then offer to start
   # tor if it isn't running.
 
@@ -76,7 +85,7 @@ def main():
         print(format(msg('msg.tor_unavailable'), *ERROR_OUTPUT))
         sys.exit(1)
       else:
-        print(format(msg('msg.starting_tor'), *HEADER_OUTPUT))
+        verbose(format(msg('msg.starting_tor'), *HEADER_OUTPUT))
 
         control_port = '9051' if args.control_port == 'default' else str(args.control_port)
 
@@ -126,9 +135,9 @@ def main():
 
     for line in msg('msg.startup_banner').splitlines():
       line_format = HEADER_BOLD_OUTPUT if line.startswith('  ') else HEADER_OUTPUT
-      print(format(line, *line_format))
+      verbose(format(line, *line_format))
 
-    print('')
+    verbose('')
 
     while True:
       try:
