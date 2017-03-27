@@ -66,11 +66,11 @@ def main():
 
     if args.disable_color and not args.cli:
       PROMPT = '>>> '
-    elif args.cli:
+    else:
       PROMPT = ''
 
   if args.cli:
-      def verbose(*output):
+      def verbose(output):
         pass
   else:
       def verbose(output):
