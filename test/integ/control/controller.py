@@ -1074,7 +1074,7 @@ class TestFeatureCommands(unittest.TestCase):
 
 class TestCircuitManagment(unittest.TestCase):
   """
-  Test opening, closing, and modifying Tor circuits
+  Test opening, closing, and modifying Tor circuits.
   """
 
   @require_controller
@@ -1156,6 +1156,115 @@ class TestCircuitManagment(unittest.TestCase):
       circuits = controller.get_circuits()
       self.assertTrue(new_circ in [circ.id for circ in circuits])
 
+class TestStreams(unittest.TestCase):
+  """
+  Test attaching streams to Tor circuits, and closing streams.
+  """
+
+  @require_controller
+  @require_online
+  def test_get_streams(self):
+    """
+    Tests Controller.get_streams().
+    """
+
+    host = socket.gethostbyname('www.torproject.org')
+    port = 443
+
+    runner = test.runner.get_runner()
+    with runner.get_tor_controller() as controller:
+      # we only need one proxy port, so take the first
+      socks_listener = controller.get_socks_listeners()[0]
+
+      with test.network.Socks(socks_listener) as s:
+        s.settimeout(30)
+        s.connect((host, port))
+        streams = controller.get_streams()
+
+    # Because we do not get a stream id when opening a stream,
+    #  try to match the target for which we asked a stream.
+
+    self.assertTrue('%s:%s' % (host, port) in [stream.target for stream in streams])
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
+  def test_attachstream(self):
+    host = socket.gethostbyname('www.torproject.org')
+    port = 80
+
+    circuit_id, streams = None, []
+
+    def handle_streamcreated(stream):
+      if stream.status == 'NEW' and circuit_id:
+        controller.attach_stream(stream.id, circuit_id)
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      # try 10 times to build a circuit we can connect through
+      for i in range(10):
+        controller.add_event_listener(handle_streamcreated, stem.control.EventType.STREAM)
+        controller.set_conf('__LeaveStreamsUnattached', '1')
+
+        try:
+          circuit_id = controller.new_circuit(await_build = True)
+          socks_listener = controller.get_socks_listeners()[0]
+
+          with test.network.Socks(socks_listener) as s:
+            s.settimeout(30)
+            s.connect((host, port))
+            streams = controller.get_streams()
+            break
+        except (stem.CircuitExtensionFailed, socket.timeout):
+          continue
+        finally:
+          controller.remove_event_listener(handle_streamcreated)
+          controller.reset_conf('__LeaveStreamsUnattached')
+
+    our_stream = [stream for stream in streams if stream.target_address == host][0]
+
+    self.assertTrue(our_stream.circ_id)
+    self.assertTrue(circuit_id)
+
+    self.assertEqual(our_stream.circ_id, circuit_id)
+
+  @require_controller
+  @require_online
+  def test_close_stream(self):
+    """
+    Tests Controller.close_stream with valid and invalid input.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      # use the first socks listener
+
+      socks_listener = controller.get_socks_listeners()[0]
+
+      with test.network.Socks(socks_listener) as s:
+        s.settimeout(30)
+        s.connect(('www.torproject.org', 443))
+
+        # There's only one stream right now.  Right?
+
+        built_stream = controller.get_streams()[0]
+
+        # Make sure we have the stream for which we asked, otherwise
+        # the next assertion would be a false positive.
+
+        self.assertEqual([built_stream.id], [stream.id for stream in controller.get_streams()])
+
+        # Try to close our stream...
+
+        controller.close_stream(built_stream.id)
+
+        # ...which means there are zero streams.
+
+        self.assertEqual([], controller.get_streams())
+
+      # unknown stream
+
+      self.assertRaises(stem.InvalidArguments, controller.close_stream, 'blarg')
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
@@ -1263,69 +1372,6 @@ class TestController(unittest.TestCase):
       self.assertEqual(False, controller.is_newnym_available())
       self.assertTrue(controller.get_newnym_wait() > 9.0)
 
-  @require_controller
-  @require_online
-  def test_get_streams(self):
-    """
-    Tests Controller.get_streams().
-    """
-
-    host = socket.gethostbyname('www.torproject.org')
-    port = 443
-
-    runner = test.runner.get_runner()
-    with runner.get_tor_controller() as controller:
-      # we only need one proxy port, so take the first
-      socks_listener = controller.get_socks_listeners()[0]
-
-      with test.network.Socks(socks_listener) as s:
-        s.settimeout(30)
-        s.connect((host, port))
-        streams = controller.get_streams()
-
-    # Because we do not get a stream id when opening a stream,
-    #  try to match the target for which we asked a stream.
-
-    self.assertTrue('%s:%s' % (host, port) in [stream.target for stream in streams])
-
-  @require_controller
-  @require_online
-  def test_close_stream(self):
-    """
-    Tests Controller.close_stream with valid and invalid input.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      # use the first socks listener
-
-      socks_listener = controller.get_socks_listeners()[0]
-
-      with test.network.Socks(socks_listener) as s:
-        s.settimeout(30)
-        s.connect(('www.torproject.org', 443))
-
-        # There's only one stream right now.  Right?
-
-        built_stream = controller.get_streams()[0]
-
-        # Make sure we have the stream for which we asked, otherwise
-        # the next assertion would be a false positive.
-
-        self.assertEqual([built_stream.id], [stream.id for stream in controller.get_streams()])
-
-        # Try to close our stream...
-
-        controller.close_stream(built_stream.id)
-
-        # ...which means there are zero streams.
-
-        self.assertEqual([], controller.get_streams())
-
-      # unknown stream
-
-      self.assertRaises(stem.InvalidArguments, controller.close_stream, 'blarg')
 
   @require_controller
   @require_online
@@ -1364,47 +1410,6 @@ class TestController(unittest.TestCase):
 
       ip_addr = response[response.find(b'\r\n\r\n'):].strip()
       self.assertTrue(stem.util.connection.is_valid_ipv4_address(stem.util.str_tools._to_unicode(ip_addr)), "'%s' isn't an address" % ip_addr)
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
-  def test_attachstream(self):
-    host = socket.gethostbyname('www.torproject.org')
-    port = 80
-
-    circuit_id, streams = None, []
-
-    def handle_streamcreated(stream):
-      if stream.status == 'NEW' and circuit_id:
-        controller.attach_stream(stream.id, circuit_id)
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      # try 10 times to build a circuit we can connect through
-      for i in range(10):
-        controller.add_event_listener(handle_streamcreated, stem.control.EventType.STREAM)
-        controller.set_conf('__LeaveStreamsUnattached', '1')
-
-        try:
-          circuit_id = controller.new_circuit(await_build = True)
-          socks_listener = controller.get_socks_listeners()[0]
-
-          with test.network.Socks(socks_listener) as s:
-            s.settimeout(30)
-            s.connect((host, port))
-            streams = controller.get_streams()
-            break
-        except (stem.CircuitExtensionFailed, socket.timeout):
-          continue
-        finally:
-          controller.remove_event_listener(handle_streamcreated)
-          controller.reset_conf('__LeaveStreamsUnattached')
-
-    our_stream = [stream for stream in streams if stream.target_address == host][0]
-
-    self.assertTrue(our_stream.circ_id)
-    self.assertTrue(circuit_id)
-
-    self.assertEqual(our_stream.circ_id, circuit_id)
 
 
   @require_controller
