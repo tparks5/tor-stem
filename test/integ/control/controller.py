@@ -69,6 +69,66 @@ class TestControllerAttachment(unittest.TestCase):
     else:
       self.assertRaises(stem.SocketError, stem.control.Controller.from_socket_file, test.runner.CONTROL_SOCKET_PATH)
 
+class TestControllerAuth(unittest.TestCase):
+  """
+  Test controller authenticate and reconnect methods 
+  """
+  # there is a test for reattaching a controller, but not one that tests the
+  # reconnect() method specificially.
+
+  @require_controller
+  def test_authenticate(self):
+    """
+    Test that the convenient method authenticate() works.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller(False) as controller:
+      controller.authenticate(test.runner.CONTROL_PASSWORD)
+      test.runner.exercise_controller(self, controller)
+
+  @require_controller
+  def test_reattaching_listeners(self):
+    """
+    Checks that event listeners are re-attached when a controller disconnects
+    then reconnects to tor.
+    """
+
+    event_notice = threading.Event()
+    event_buffer = []
+
+    def listener(event):
+      event_buffer.append(event)
+      event_notice.set()
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      controller.add_event_listener(listener, EventType.CONF_CHANGED)
+
+      # trigger an event
+
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+      event_notice.wait(4)
+      self.assertTrue(len(event_buffer) >= 1)
+
+      # disconnect, then reconnect and check that we get events again
+
+      controller.close()
+      event_notice.clear()
+      event_buffer = []
+
+      controller.connect()
+      controller.authenticate(password = test.runner.CONTROL_PASSWORD)
+      self.assertTrue(len(event_buffer) == 0)
+      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
+
+      event_notice.wait(4)
+      self.assertTrue(len(event_buffer) >= 1)
+
+      controller.reset_conf('NodeFamily')
+
 class TestGetStatuses(unittest.TestCase):
   """
   Test functions that return Tor's status, like get_info and get_exit_policy
@@ -363,59 +423,8 @@ class TestController(unittest.TestCase):
 
       controller.reset_conf('NodeFamily')
 
-  @require_controller
-  def test_reattaching_listeners(self):
-    """
-    Checks that event listeners are re-attached when a controller disconnects
-    then reconnects to tor.
-    """
-
-    event_notice = threading.Event()
-    event_buffer = []
-
-    def listener(event):
-      event_buffer.append(event)
-      event_notice.set()
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      controller.add_event_listener(listener, EventType.CONF_CHANGED)
-
-      # trigger an event
-
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-      event_notice.wait(4)
-      self.assertTrue(len(event_buffer) >= 1)
-
-      # disconnect, then reconnect and check that we get events again
-
-      controller.close()
-      event_notice.clear()
-      event_buffer = []
-
-      controller.connect()
-      controller.authenticate(password = test.runner.CONTROL_PASSWORD)
-      self.assertTrue(len(event_buffer) == 0)
-      controller.set_conf('NodeFamily', test.mocking.random_fingerprint())
-
-      event_notice.wait(4)
-      self.assertTrue(len(event_buffer) >= 1)
-
-      controller.reset_conf('NodeFamily')
 
 
-  @require_controller
-  def test_authenticate(self):
-    """
-    Test that the convenient method authenticate() works.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller(False) as controller:
-      controller.authenticate(test.runner.CONTROL_PASSWORD)
-      test.runner.exercise_controller(self, controller)
 
 
   @require_controller
