@@ -1049,6 +1049,113 @@ class TestFeatureCommands(unittest.TestCase):
   Test controller feature management commands, like enable_feature.
   """
 
+  @require_controller
+  @require_online
+  @require_version(stem.version.Version('0.1.2.2-alpha'))
+  def test_enable_feature(self):
+    """
+    Test Controller.enable_feature with valid and invalid inputs.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      self.assertTrue(controller.is_feature_enabled('VERBOSE_NAMES'))
+
+      self.assertTrue('VERBOSE_NAMES' in controller._enabled_features)
+      self.assertRaises(stem.InvalidArguments, controller.enable_feature, ['NOT', 'A', 'FEATURE'])
+
+      try:
+        controller.enable_feature(['NOT', 'A', 'FEATURE'])
+      except stem.InvalidArguments as exc:
+        self.assertEqual(['NOT'], exc.arguments)
+      else:
+        self.fail()
+
+class TestCircuitManagment(unittest.TestCase):
+  """
+  Test opening, closing, and modifying Tor circuits
+  """
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
+  def test_extendcircuit(self):
+    with test.runner.get_runner().get_tor_controller() as controller:
+      circuit_id = controller.extend_circuit('0')
+
+      # check if our circuit was created
+      self.assertNotEqual(None, controller.get_circuit(circuit_id, None))
+      circuit_id = controller.new_circuit()
+      self.assertNotEqual(None, controller.get_circuit(circuit_id, None))
+
+      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, 'foo')
+      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, '0', 'thisroutershouldntexistbecausestemexists!@##$%#')
+      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, '0', 'thisroutershouldntexistbecausestemexists!@##$%#', 'foo')
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
+  def test_repurpose_circuit(self):
+    """
+    Tests Controller.repurpose_circuit with valid and invalid input.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      circ_id = controller.new_circuit()
+      controller.repurpose_circuit(circ_id, 'CONTROLLER')
+      circuit = controller.get_circuit(circ_id)
+      self.assertTrue(circuit.purpose == 'CONTROLLER')
+
+      controller.repurpose_circuit(circ_id, 'GENERAL')
+      circuit = controller.get_circuit(circ_id)
+      self.assertTrue(circuit.purpose == 'GENERAL')
+
+      self.assertRaises(stem.InvalidRequest, controller.repurpose_circuit, 'f934h9f3h4', 'fooo')
+      self.assertRaises(stem.InvalidRequest, controller.repurpose_circuit, '4', 'fooo')
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
+  def test_close_circuit(self):
+    """
+    Tests Controller.close_circuit with valid and invalid input.
+    """
+
+    runner = test.runner.get_runner()
+
+    with runner.get_tor_controller() as controller:
+      circuit_id = controller.new_circuit()
+      controller.close_circuit(circuit_id)
+      circuit_output = controller.get_info('circuit-status')
+      circ = [x.split()[0] for x in circuit_output.splitlines()]
+      self.assertFalse(circuit_id in circ)
+
+      circuit_id = controller.new_circuit()
+      controller.close_circuit(circuit_id, 'IfUnused')
+      circuit_output = controller.get_info('circuit-status')
+      circ = [x.split()[0] for x in circuit_output.splitlines()]
+      self.assertFalse(circuit_id in circ)
+
+      circuit_id = controller.new_circuit()
+      self.assertRaises(stem.InvalidArguments, controller.close_circuit, circuit_id + '1024')
+      self.assertRaises(stem.InvalidRequest, controller.close_circuit, '')
+
+  @require_controller
+  @require_online
+  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
+  def test_get_circuits(self):
+    """
+    Fetches circuits via the get_circuits() method.
+    """
+
+    with test.runner.get_runner().get_tor_controller() as controller:
+      new_circ = controller.new_circuit()
+      circuits = controller.get_circuits()
+      self.assertTrue(new_circ in [circ.id for circ in circuits])
+
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
@@ -1129,29 +1236,6 @@ class TestController(unittest.TestCase):
       self.assertEqual([('127.0.0.1', 1112)], controller.get_socks_listeners())
 
   @require_controller
-  @require_online
-  @require_version(stem.version.Version('0.1.2.2-alpha'))
-  def test_enable_feature(self):
-    """
-    Test Controller.enable_feature with valid and invalid inputs.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      self.assertTrue(controller.is_feature_enabled('VERBOSE_NAMES'))
-
-      self.assertTrue('VERBOSE_NAMES' in controller._enabled_features)
-      self.assertRaises(stem.InvalidArguments, controller.enable_feature, ['NOT', 'A', 'FEATURE'])
-
-      try:
-        controller.enable_feature(['NOT', 'A', 'FEATURE'])
-      except stem.InvalidArguments as exc:
-        self.assertEqual(['NOT'], exc.arguments)
-      else:
-        self.fail()
-
-  @require_controller
   def test_signal(self):
     """
     Test controller.signal with valid and invalid signals.
@@ -1178,72 +1262,6 @@ class TestController(unittest.TestCase):
 
       self.assertEqual(False, controller.is_newnym_available())
       self.assertTrue(controller.get_newnym_wait() > 9.0)
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
-  def test_extendcircuit(self):
-    with test.runner.get_runner().get_tor_controller() as controller:
-      circuit_id = controller.extend_circuit('0')
-
-      # check if our circuit was created
-      self.assertNotEqual(None, controller.get_circuit(circuit_id, None))
-      circuit_id = controller.new_circuit()
-      self.assertNotEqual(None, controller.get_circuit(circuit_id, None))
-
-      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, 'foo')
-      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, '0', 'thisroutershouldntexistbecausestemexists!@##$%#')
-      self.assertRaises(stem.InvalidRequest, controller.extend_circuit, '0', 'thisroutershouldntexistbecausestemexists!@##$%#', 'foo')
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
-  def test_repurpose_circuit(self):
-    """
-    Tests Controller.repurpose_circuit with valid and invalid input.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      circ_id = controller.new_circuit()
-      controller.repurpose_circuit(circ_id, 'CONTROLLER')
-      circuit = controller.get_circuit(circ_id)
-      self.assertTrue(circuit.purpose == 'CONTROLLER')
-
-      controller.repurpose_circuit(circ_id, 'GENERAL')
-      circuit = controller.get_circuit(circ_id)
-      self.assertTrue(circuit.purpose == 'GENERAL')
-
-      self.assertRaises(stem.InvalidRequest, controller.repurpose_circuit, 'f934h9f3h4', 'fooo')
-      self.assertRaises(stem.InvalidRequest, controller.repurpose_circuit, '4', 'fooo')
-
-  @require_controller
-  @require_online
-  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
-  def test_close_circuit(self):
-    """
-    Tests Controller.close_circuit with valid and invalid input.
-    """
-
-    runner = test.runner.get_runner()
-
-    with runner.get_tor_controller() as controller:
-      circuit_id = controller.new_circuit()
-      controller.close_circuit(circuit_id)
-      circuit_output = controller.get_info('circuit-status')
-      circ = [x.split()[0] for x in circuit_output.splitlines()]
-      self.assertFalse(circuit_id in circ)
-
-      circuit_id = controller.new_circuit()
-      controller.close_circuit(circuit_id, 'IfUnused')
-      circuit_output = controller.get_info('circuit-status')
-      circ = [x.split()[0] for x in circuit_output.splitlines()]
-      self.assertFalse(circuit_id in circ)
-
-      circuit_id = controller.new_circuit()
-      self.assertRaises(stem.InvalidArguments, controller.close_circuit, circuit_id + '1024')
-      self.assertRaises(stem.InvalidRequest, controller.close_circuit, '')
 
   @require_controller
   @require_online
@@ -1388,18 +1406,6 @@ class TestController(unittest.TestCase):
 
     self.assertEqual(our_stream.circ_id, circuit_id)
 
-  @require_controller
-  @require_online
-  @require_version(Requirement.EXTENDCIRCUIT_PATH_OPTIONAL)
-  def test_get_circuits(self):
-    """
-    Fetches circuits via the get_circuits() method.
-    """
-
-    with test.runner.get_runner().get_tor_controller() as controller:
-      new_circ = controller.new_circuit()
-      circuits = controller.get_circuits()
-      self.assertTrue(new_circ in [circ.id for circ in circuits])
 
   @require_controller
   def test_transition_to_relay(self):
