@@ -655,6 +655,119 @@ class TestConfOptions(unittest.TestCase):
 
         shutil.rmtree(tmpdir)
 
+class TestHiddenServices(unittest.TestCase):
+  """
+  Test hidden service methods, like create_hidden_service  
+  """
+  
+  @require_controller
+  def test_hidden_services_conf(self):
+    """
+    Exercises the hidden service family of methods (get_hidden_service_conf,
+    set_hidden_service_conf, create_hidden_service, and remove_hidden_service).
+    """
+
+    runner = test.runner.get_runner()
+
+    test_dir = runner.get_test_dir()
+    service1_path = os.path.join(test_dir, 'test_hidden_service1')
+    service2_path = os.path.join(test_dir, 'test_hidden_service2')
+    service3_path = os.path.join(test_dir, 'test_hidden_service3')
+    service4_path = os.path.join(test_dir, 'test_hidden_service4')
+
+    with runner.get_tor_controller() as controller:
+      try:
+        # initially we shouldn't be running any hidden services
+
+        self.assertEqual({}, controller.get_hidden_service_conf())
+
+        # try setting a blank config, shouldn't have any impact
+
+        controller.set_hidden_service_conf({})
+        self.assertEqual({}, controller.get_hidden_service_conf())
+
+        # create a hidden service
+
+        initialconf = {
+          service1_path: {
+            'HiddenServicePort': [
+              (8020, '127.0.0.1', 8020),
+              (8021, '127.0.0.1', 8021),
+            ],
+            'HiddenServiceVersion': '2',
+          },
+          service2_path: {
+            'HiddenServiceAuthorizeClient': 'stealth a, b',
+            'HiddenServicePort': [
+              (8030, '127.0.0.1', 8030),
+              (8031, '127.0.0.1', 8031),
+              (8032, '127.0.0.1', 8032),
+            ]
+          },
+        }
+
+        controller.set_hidden_service_conf(initialconf)
+        self.assertEqual(initialconf, controller.get_hidden_service_conf())
+
+        # add already existing services, with/without explicit target
+
+        self.assertEqual(None, controller.create_hidden_service(service1_path, 8020))
+        self.assertEqual(None, controller.create_hidden_service(service1_path, 8021, target_port = 8021))
+        self.assertEqual(initialconf, controller.get_hidden_service_conf())
+
+        # add a new service, with/without explicit target
+
+        hs_path = os.path.join(os.getcwd(), service3_path)
+        hs_address1 = controller.create_hidden_service(hs_path, 8888).hostname
+        hs_address2 = controller.create_hidden_service(hs_path, 8989, target_port = 8021).hostname
+
+        self.assertEqual(hs_address1, hs_address2)
+        self.assertTrue(hs_address1.endswith('.onion'))
+
+        conf = controller.get_hidden_service_conf()
+        self.assertEqual(3, len(conf))
+        self.assertEqual(2, len(conf[hs_path]['HiddenServicePort']))
+
+        # remove a hidden service, the service dir should still be there
+
+        controller.remove_hidden_service(hs_path, 8888)
+        self.assertEqual(3, len(controller.get_hidden_service_conf()))
+
+        # remove a service completely, it should now be gone
+
+        controller.remove_hidden_service(hs_path, 8989)
+        self.assertEqual(2, len(controller.get_hidden_service_conf()))
+
+        # add a new service, this time with client authentication
+
+        hs_path = os.path.join(os.getcwd(), service4_path)
+        hs_attributes = controller.create_hidden_service(hs_path, 8888, auth_type = 'basic', client_names = ['c1', 'c2'])
+
+        self.assertEqual(2, len(hs_attributes.hostname.splitlines()))
+        self.assertEqual(2, len(hs_attributes.hostname_for_client))
+        self.assertTrue(hs_attributes.hostname_for_client['c1'].endswith('.onion'))
+        self.assertTrue(hs_attributes.hostname_for_client['c2'].endswith('.onion'))
+
+        conf = controller.get_hidden_service_conf()
+        self.assertEqual(3, len(conf))
+        self.assertEqual(1, len(conf[hs_path]['HiddenServicePort']))
+
+        # remove a hidden service
+
+        controller.remove_hidden_service(hs_path, 8888)
+        self.assertEqual(2, len(controller.get_hidden_service_conf()))
+      finally:
+        controller.set_hidden_service_conf({})  # drop hidden services created during the test
+
+        # clean up the hidden service directories created as part of this test
+
+        for path in (service1_path, service2_path, service3_path, service4_path):
+          try:
+            shutil.rmtree(path)
+          except:
+            pass
+
+
 # God class to be dismantled
 class TestController(unittest.TestCase):
   @only_run_once
@@ -780,113 +893,6 @@ class TestController(unittest.TestCase):
 
 
 
-
-  @require_controller
-  def test_hidden_services_conf(self):
-    """
-    Exercises the hidden service family of methods (get_hidden_service_conf,
-    set_hidden_service_conf, create_hidden_service, and remove_hidden_service).
-    """
-
-    runner = test.runner.get_runner()
-
-    test_dir = runner.get_test_dir()
-    service1_path = os.path.join(test_dir, 'test_hidden_service1')
-    service2_path = os.path.join(test_dir, 'test_hidden_service2')
-    service3_path = os.path.join(test_dir, 'test_hidden_service3')
-    service4_path = os.path.join(test_dir, 'test_hidden_service4')
-
-    with runner.get_tor_controller() as controller:
-      try:
-        # initially we shouldn't be running any hidden services
-
-        self.assertEqual({}, controller.get_hidden_service_conf())
-
-        # try setting a blank config, shouldn't have any impact
-
-        controller.set_hidden_service_conf({})
-        self.assertEqual({}, controller.get_hidden_service_conf())
-
-        # create a hidden service
-
-        initialconf = {
-          service1_path: {
-            'HiddenServicePort': [
-              (8020, '127.0.0.1', 8020),
-              (8021, '127.0.0.1', 8021),
-            ],
-            'HiddenServiceVersion': '2',
-          },
-          service2_path: {
-            'HiddenServiceAuthorizeClient': 'stealth a, b',
-            'HiddenServicePort': [
-              (8030, '127.0.0.1', 8030),
-              (8031, '127.0.0.1', 8031),
-              (8032, '127.0.0.1', 8032),
-            ]
-          },
-        }
-
-        controller.set_hidden_service_conf(initialconf)
-        self.assertEqual(initialconf, controller.get_hidden_service_conf())
-
-        # add already existing services, with/without explicit target
-
-        self.assertEqual(None, controller.create_hidden_service(service1_path, 8020))
-        self.assertEqual(None, controller.create_hidden_service(service1_path, 8021, target_port = 8021))
-        self.assertEqual(initialconf, controller.get_hidden_service_conf())
-
-        # add a new service, with/without explicit target
-
-        hs_path = os.path.join(os.getcwd(), service3_path)
-        hs_address1 = controller.create_hidden_service(hs_path, 8888).hostname
-        hs_address2 = controller.create_hidden_service(hs_path, 8989, target_port = 8021).hostname
-
-        self.assertEqual(hs_address1, hs_address2)
-        self.assertTrue(hs_address1.endswith('.onion'))
-
-        conf = controller.get_hidden_service_conf()
-        self.assertEqual(3, len(conf))
-        self.assertEqual(2, len(conf[hs_path]['HiddenServicePort']))
-
-        # remove a hidden service, the service dir should still be there
-
-        controller.remove_hidden_service(hs_path, 8888)
-        self.assertEqual(3, len(controller.get_hidden_service_conf()))
-
-        # remove a service completely, it should now be gone
-
-        controller.remove_hidden_service(hs_path, 8989)
-        self.assertEqual(2, len(controller.get_hidden_service_conf()))
-
-        # add a new service, this time with client authentication
-
-        hs_path = os.path.join(os.getcwd(), service4_path)
-        hs_attributes = controller.create_hidden_service(hs_path, 8888, auth_type = 'basic', client_names = ['c1', 'c2'])
-
-        self.assertEqual(2, len(hs_attributes.hostname.splitlines()))
-        self.assertEqual(2, len(hs_attributes.hostname_for_client))
-        self.assertTrue(hs_attributes.hostname_for_client['c1'].endswith('.onion'))
-        self.assertTrue(hs_attributes.hostname_for_client['c2'].endswith('.onion'))
-
-        conf = controller.get_hidden_service_conf()
-        self.assertEqual(3, len(conf))
-        self.assertEqual(1, len(conf[hs_path]['HiddenServicePort']))
-
-        # remove a hidden service
-
-        controller.remove_hidden_service(hs_path, 8888)
-        self.assertEqual(2, len(controller.get_hidden_service_conf()))
-      finally:
-        controller.set_hidden_service_conf({})  # drop hidden services created during the test
-
-        # clean up the hidden service directories created as part of this test
-
-        for path in (service1_path, service2_path, service3_path, service4_path):
-          try:
-            shutil.rmtree(path)
-          except:
-            pass
 
   @require_controller
   @require_version(Requirement.ADD_ONION)
