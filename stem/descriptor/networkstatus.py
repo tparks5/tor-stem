@@ -1061,8 +1061,12 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def get_signed_digests(self):
     """ Returns list of DA-signed digests of the NetworkStatusDocumentv3 """
-    if stem.prereq.is_crypto_available():
-      return self.signatures
+    if not stem.prereq.is_crypto_available():
+      raise NotImplementedError("Cryptography support required to verify public key signatures")
+    
+    return [ da.key_certificate for da in  self.directory_authorities]
+    #for sig in self.signatures:
+      #self._digest_for_signature(self 
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
