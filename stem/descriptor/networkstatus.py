@@ -1055,6 +1055,16 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
 
+  def digest(self):
+    """ Returns the SHA1 hash of the body and header of the NetworkStatusDocumentv3 """
+    return self._digest_for_content('network-status-version', 'directory-signature')
+    
+  def get_signed_digests(self):
+    """ Returns list of DA-signed digests of the NetworkStatusDocumentv3 """
+    if stem.prereq.is_crypto_available():
+      return self.ATTRIBUTES['signatures']
+      #for sig in self.ATTRIBUTES['signatures']
+
   def get_unrecognized_lines(self):
     if self._lazy_loading:
       self._parse(self._header_entries, False, parser_for_line = self.HEADER_PARSER_FOR_LINE)
