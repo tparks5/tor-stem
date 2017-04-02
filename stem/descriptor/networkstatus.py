@@ -953,9 +953,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     if not stem.prereq.is_crypto_available():
       raise NotImplementedError("Cryptography support required to verify public key signatures")
     
-    return [ da.key_certificate for da in  self.directory_authorities]
-    #for sig in self.signatures:
-      #self._digest_for_signature(self 
+    from os.path import expanduser
+    path = expanduser("~/.tor/cached-certs")
+    f = open(path, 'rb')
+    key_certs = _parse_file_key_certs(f, validate=True)
+    return key_certs
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
