@@ -946,8 +946,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def digest(self):
     """ Returns the SHA1 hash of the body and header of the NetworkStatusDocumentv3 """
-    return self._digest_for_content('network-status-version', 'directory-signature')
-    
+    return self._digest_for_content(b'network-status-version', b'directory-signature')
+
   def get_signed_digests(self):
     """ Returns list of DA-signed digests of the NetworkStatusDocumentv3 """
     if stem.prereq.is_crypto_available():
