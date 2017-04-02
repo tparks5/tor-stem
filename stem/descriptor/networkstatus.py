@@ -1056,19 +1056,25 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self._footer(document_file, validate)
 
   def digest(self):
-    """ Returns the SHA1 hash of the body and header of the NetworkStatusDocumentv3 """
+    """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
     return self._digest_for_content(b'network-status-version', b'directory-signature')
 
-  def get_signed_digests(self):
-    """ Returns list of DA-signed digests of the NetworkStatusDocumentv3 """
-    if not stem.prereq.is_crypto_available():
-      raise NotImplementedError("Cryptography support required to verify public key signatures")
-    
+  def get_key_certs(self):
+    """
+    Get the KeyCerts from tor's cache; eventually this should also support 
+    getting KeyCerts from Tor online too.
+    """
     from os.path import expanduser
     path = expanduser("~/.tor/cached-certs")
     f = open(path, 'rb')
     key_certs = _parse_file_key_certs(f, validate=True)
     return key_certs
+
+  def get_signed_digests(self):
+    """Returns list of DA-signed digests of the NetworkStatusDocumentv3"""
+    if not stem.prereq.is_crypto_available():
+      raise NotImplementedError("Cryptography support required to verify public key signatures")
+    return self.get_key_certs()
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
