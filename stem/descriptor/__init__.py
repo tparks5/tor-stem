@@ -663,32 +663,6 @@ class Descriptor(object):
   def _name(self, is_plural = False):
     return str(type(self))
 
-  def sig_tokens(self):
-    raise NotImplementedError()
-
-  def signed_portion(self):
-    raw_doc = str(self)
-    start_token, end_token = self.sig_tokens()
-    begin = raw_doc.find(start_token)
-    sig_begin = raw_doc.find(end_token)
-    doc_end = sig_begin + len(end_token)
-    if begin < 0 or sig_begin < begin:
-        raise ValueError('Unable to extract signable network status document')
-    return raw_doc[begin:doc_end]
-
-  def nsdoc_digest(self, digest_func):
-    sbytes = stem.util.str_tools._to_bytes(self.signed_portion())
-    return digest_func(sbytes).hexdigest().upper()
-
-  def check_signature(self):
-    local_digest = _digest_for_content(b'router ', b'\nrouter-signature\n'):w
-    signed_digest = _digest_for_signature(self.signing_key, self.signature)
-    if local_digest != signed_digest:
-      raise ValueError("Devrypted digest does not match local digest. Expected "
-          + repr(local_digest) + " and found " + repr(signed_digest))
-    else:
-      return True
-
   def _digest_for_signature(self, signing_key, signature):
     """
     Provides the signed digest we should have given this key and signature.
