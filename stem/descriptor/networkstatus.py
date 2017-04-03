@@ -1074,14 +1074,26 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       match = authorities.setdefault(key_cert.fingerprint, None)
       if match is not None:
         match.key_certificate = key_cert
-      print("DA fingerprint", match.nickname, match.key_certificate.fingerprint)
-    return [(da.nickname, da.key_certificate) for da in self.directory_authorities]
 
   def get_signed_digests(self):
     """Returns list of DA-signed digests of the NetworkStatusDocumentv3"""
-    if not stem.prereq.is_crypto_available():
-      raise NotImplementedError("Cryptography support required to verify public key signatures")
-    return self.get_key_certs()
+    
+    print("self.signatures", self.signatures[0])
+    self.get_key_certs()
+    sigs = {sig.identity: sig for sig in self.signatures}
+    for da in self.directory_authorities:
+      # strip ---BEGIN x--- and ---END x--- blocks from key/sig
+      key = da.key_certificate.signing_key.split("\n", 1)[1].rsplit("\n", 1)[0]
+      sig = sigs[da.v3ident].signature.split("\n", 1)[1].rsplit("\n", 1)[0]
+      try:
+        print("Decrypting signed digest for", da.nickname, "\nkey:\n", key, "\nsig:\n", sig)
+        signed_digest = self._digest_for_signature(key, sig)
+        print("Signed digest", signed_digest)
+        yield signed_digest
+      except ValueError:
+        # fails if no crypto module available
+        raise 
+      
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
