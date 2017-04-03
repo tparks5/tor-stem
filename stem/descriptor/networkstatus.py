@@ -1085,7 +1085,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       key = da.key_certificate.signing_key
       sig = sigs[da.v3ident].signature
       try:
-        print("Decrypting signed digest for", da.nickname, "\nkey:\n", key, "\nsig:\n", sig)
         signed_digest = self._digest_for_signature(key, sig)
         print("Signed digest", signed_digest)
         yield signed_digest
