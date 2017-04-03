@@ -1082,9 +1082,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self.get_key_certs()
     sigs = {sig.identity: sig for sig in self.signatures}
     for da in self.directory_authorities:
-      # strip ---BEGIN x--- and ---END x--- blocks from key/sig
-      key = da.key_certificate.signing_key.split("\n", 1)[1].rsplit("\n", 1)[0]
-      sig = sigs[da.v3ident].signature.split("\n", 1)[1].rsplit("\n", 1)[0]
+      key = da.key_certificate.signing_key
+      sig = sigs[da.v3ident].signature
       try:
         print("Decrypting signed digest for", da.nickname, "\nkey:\n", key, "\nsig:\n", sig)
         signed_digest = self._digest_for_signature(key, sig)
