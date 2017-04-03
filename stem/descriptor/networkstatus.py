@@ -1068,6 +1068,22 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     path = expanduser("~/.tor/cached-certs")
     f = open(path, 'rb')
     key_certs = _parse_file_key_certs(f, validate=True)
+
+    i = 0
+    authorities = {da.address : da for da in self.directory_authorities}
+    for key_cert in key_certs:
+        i += 1
+        print("found keycert %s" % key_cert.address)
+        match = authorities.setdefault(key_cert.address, None)
+        if match is not None:
+            match.key_certificate = key_cert
+        else:
+            pass 
+    print("DAs have these IPs:\n", [(da.nickname, da.address) for da in self.directory_authorities])
+    print("found %i keycerts" % i)
+    return [(da.nickname, da.key_certificate) for da in self.directory_authorities]
+
+
     return key_certs
 
   def get_signed_digests(self):
