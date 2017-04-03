@@ -1069,20 +1069,12 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     f = open(path, 'rb')
     key_certs = _parse_file_key_certs(f, validate=True)
 
-    from hashlib import sha1 as sha1  
-    #authorities = {da.address : da for da in self.directory_authorities}
     authorities = {da.v3ident : da for da in self.directory_authorities}
     for key_cert in key_certs:
-        if key_cert.fingerprint in authorities.keys():
-            print("KC fingerprint is v3ident", key_cert.fingerprint)
-        elif sha1(key_cert.identity_key).hexdigest().upper() in authorities.keys():
-            print("KC hashed ID key is v3ident", sha1(key_cert.identity_key).hexdigest.upper())
-        elif sha1(key_cert.signing_key).hexdigest().upper() in authorities.keys():
-            print("KC hashed signing key is v3ident", sha1(key_cert.signing_key).hexdigest.upper())
-        else:
-            print("KC fingerprint, hashed ID key, and signing key are not v3ident")
-
-    print("DAs have these IPs:\n", [(da.nickname, da.address) for da in self.directory_authorities])
+      match = authorities.setdefault(key_cert.fingerprint, None)
+      if match is not None:
+        match.key_certificate = key_cert
+      print("DA fingerprint", match.nickname, match.key_certificate.fingerprint)
     return [(da.nickname, da.key_certificate) for da in self.directory_authorities]
 
   def get_signed_digests(self):
