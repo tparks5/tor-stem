@@ -1054,6 +1054,24 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
+  
+  def get_signing_keys(self):
+    """Return list of DirectoryAuthority.KeyCertificate.signing_key values for this NSD"""
+    l = []
+    for da in self.directory_authorities:
+      key_cert = da.key_certificate 
+      if key_cert is not None:
+        l.append(da.key_certificate.signing_key)
+      else:
+        l.append(None)
+    return l
+
+  def get_signatures(self):
+    """Return list of DocumentSignature.signature for this NSD"""
+    l = []
+    for ds in self.signatures:
+      l.append(ds.signature)
+    return l
 
   def digest(self):
     """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
@@ -1062,7 +1080,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def get_key_certs(self):
     """
     Get the KeyCerts from tor's cache; eventually this should also support 
-    getting KeyCerts from Tor online too.
+    getting KeyCerts from Tor online too. Adds KeyCerts to DirectoryAuthority
+    objects.
     """
     from os.path import expanduser
     path = expanduser("~/.tor/cached-certs")
