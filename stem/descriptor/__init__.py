@@ -693,7 +693,7 @@ class Descriptor(object):
     # use the public exponent[e] & the modulus[n] to decrypt the int
 
     decrypted_int = pow(sig_as_long, public_exponent, modulus)
-
+    print("decrypted int", type(decrypted_int), decrypted_int)
     # convert the int to a byte array
     decrypted_bytes = int_to_bytes(decrypted_int, blocksize)
 
