@@ -576,10 +576,8 @@ class Descriptor(object):
     sig_as_bytes = _bytes_for_block(signature)
     sig_as_long = int_from_bytes(sig_as_bytes, byteorder='big')  # convert signature to an int
     
-    if len(sig_as_bytes) == 128:
-        blocksize = 128  # block size will always be 128 for a 1024 bit key
-    else:
-        blocksize = 256 # block size is 256B for NetworkStatusDocument signatures
+    # sig is 256B for NetworkStatusDocuments, and 128B for other descriptors
+    blocksize = len(sig_as_bytes)
 
     # use the public exponent[e] & the modulus[n] to decrypt the int
 

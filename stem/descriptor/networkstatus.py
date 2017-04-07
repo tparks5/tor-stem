@@ -964,7 +964,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def digest(self):
     """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
-    return self._digest_for_content(b'network-status-version', b'directory-signature')
+    return self._digest_for_content(b'network-status-version', b'directory-footer')
 
   def get_key_certs(self):
     """
