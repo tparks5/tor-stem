@@ -688,12 +688,16 @@ class Descriptor(object):
 
     sig_as_bytes = _bytes_for_block(signature)
     sig_as_long = int_from_bytes(sig_as_bytes, byteorder='big')  # convert signature to an int
-    blocksize = 128  # block size will always be 128 for a 1024 bit key
+    
+    if len(sig_as_bytes) == 128:
+        blocksize = 128  # block size will always be 128 for a 1024 bit key
+    else:
+        blocksize = 256 # block size is 256B for NetworkStatusDocument signatures
 
     # use the public exponent[e] & the modulus[n] to decrypt the int
 
     decrypted_int = pow(sig_as_long, public_exponent, modulus)
-    print("decrypted int", type(decrypted_int), decrypted_int)
+
     # convert the int to a byte array
     decrypted_bytes = int_to_bytes(decrypted_int, blocksize)
 
