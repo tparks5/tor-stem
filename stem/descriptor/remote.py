@@ -481,6 +481,14 @@ class DescriptorDownloader(object):
       except Exception as exc:
         log.debug('Unable to retrieve directory mirrors: %s' % exc)
 
+  def get_network_status_document(self):
+    """
+    Downloads and returns the present NetworkStatusDocumentV3, because get_consensus()
+    doesn't actually return a Network Status Document object.
+    """
+    nsd = self.get_consensus(document_handler = stem.descriptor.DocumentHandler.DOCUMENT).run()
+    return nsd
+
   def use_directory_mirrors(self):
     """
     Downloads the present consensus and configures ourselves to use directory
