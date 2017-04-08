@@ -1042,10 +1042,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     if validate and self.is_vote and len(self.directory_authorities) != 1:
       raise ValueError('Votes should only have an authority entry for the one that issued it, got %i: %s' % (len(self.directory_authorities), self.directory_authorities))
-    
-    if validate:
-      self.validate_signatures()
-
+   
     router_iter = stem.descriptor.router_status_entry._parse_file(
       document_file,
       validate,
@@ -1057,6 +1054,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
+    
+    print("Validate", validate)
+    if validate:
+      print("Calling validate_signatures()")
+      self.validate_signatures()
   
   def get_signing_keys(self):
     """Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD"""
@@ -1082,22 +1084,37 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       from itertools import izip # for zipping generators
     except ImportError:
       izip = zip
-  
+ 
+    print("Entered validate_signatures")
+    
     # Populate signing keys
     self.get_key_certs()
 
+    for da in self.directory_authorities:
+      print("Got key", da.nickname, da.key_certificate.fingerprint)
+
     local_digest = self.digest()
-    invalid_digests = 0.0
+    valid_digests = 0.0
     total_digests = float(len(self.directory_authorities))
+
+    for key in self.get_signing_keys():
+      print("found key of length", len(key))
+   
+    print("number of DS sigs:", len(self.signatures))
+
+    for sig in self.get_signatures():
+      print("found sig of legnth", len(sig))
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
       signed_digest = self._digest_for_signature(key, sig)
-      print("Validating", signed_digest[:7], local_digest[:7])
-      if signed_digest != local_digest:
-        invalid_digests += 1.0
+      print("Validating", signed_digest, local_digest)
+      if signed_digest == local_digest:
+        valid_digests += 1.0
+    
+    print("Digest validation complete, %i valid digests" % int(valid_digests))
 
     # More than 50% of the signed digests must be valid
-    if ((total_digests - invalid_digests) / total_digests) <= 0.5:
+    if ((total_digests - valid_digests) / total_digests) >= 0.5:
       raise ValueError("Network Status Document does not have enough valid signatures")
 
   def digest(self):
