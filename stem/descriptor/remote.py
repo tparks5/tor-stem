@@ -171,6 +171,15 @@ def get_consensus(authority_v3ident = None, microdescriptor = False, **query_arg
 
   return get_instance().get_consensus(authority_v3ident, microdescriptor, **query_args)
 
+def get_network_status_document(authority_v3ident = None, microdescriptor = False, **query_args):
+  """
+  shorthand for
+  :func:`~stem.descriptor.remote.DescriptorDownloader.get_consensus`
+  on our singleton instance.
+  """
+
+  return get_instance().get_network_status_document(authority_v3ident, microdescriptor, **query_args)
+
 
 def _guess_descriptor_type(resource):
   # Attempts to determine the descriptor type based on the resource url. This
@@ -481,14 +490,15 @@ class DescriptorDownloader(object):
       except Exception as exc:
         log.debug('Unable to retrieve directory mirrors: %s' % exc)
 
-  def get_network_status_document(self):
+  def get_network_status_document(self, authority_v3ident = None, microdescriptor = False, **query_args):
     """
     Downloads and returns the present NetworkStatusDocumentV3, because get_consensus()
     doesn't actually return a Network Status Document object.
     """
-    nsd = self.get_consensus(document_handler = stem.descriptor.DocumentHandler.DOCUMENT).run()
-    return nsd
+    query_args["document_handler"] = stem.descriptor.DocumentHandler.DOCUMENT
 
+    return list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
+    
   def use_directory_mirrors(self):
     """
     Downloads the present consensus and configures ourselves to use directory
