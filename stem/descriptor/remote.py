@@ -496,7 +496,6 @@ class DescriptorDownloader(object):
     doesn't actually return a Network Status Document object.
     """
     query_args["document_handler"] = stem.descriptor.DocumentHandler.DOCUMENT
-    print(query_args)
 
     return list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
     
