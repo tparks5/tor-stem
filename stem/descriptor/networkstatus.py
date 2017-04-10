@@ -269,7 +269,6 @@ def _parse_file(document_file, document_type = None, validate = False, is_microd
   else:
     raise ValueError("Document type %i isn't recognized (only able to parse v2, v3, and bridge)" % document_type)
 
-  print("\n_parse_file kwargs:", kwargs)
   if document_handler == DocumentHandler.DOCUMENT:
     yield document_type(document_file.read(), validate, **kwargs)
     return
@@ -977,6 +976,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
  
     local_digest = self.digest()
     valid_digests = 0.0
+    # Only 8 of the 9 directories sign a consensus
     total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
@@ -985,7 +985,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         valid_digests += 1.0
 
     # More than 50% of the signed digests must be present and valid
-    if (total_directories - valid_digests) <= (total_directories / 2.0):
+    if (total_directories - valid_digests) >= (total_directories / 2.0):
       raise ValueError("Network Status Document does not have enough valid signatures")
 
   def digest(self):
