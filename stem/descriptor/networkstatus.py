@@ -269,6 +269,7 @@ def _parse_file(document_file, document_type = None, validate = False, is_microd
   else:
     raise ValueError("Document type %i isn't recognized (only able to parse v2, v3, and bridge)" % document_type)
 
+  print("\n_parse_file kwargs:", kwargs)
   if document_handler == DocumentHandler.DOCUMENT:
     yield document_type(document_file.read(), validate, **kwargs)
     return
@@ -893,7 +894,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     'directory-signature': _parse_footer_directory_signature_line,
   }
 
-  def __init__(self, raw_content, validate = False, default_params = True):
+  def __init__(self, raw_content, validate = False, default_params = True, key_certificates = None):
     """
     Parse a v3 network status document.
 
@@ -943,7 +944,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
-    
+   
+    self.set_key_certs(key_certificates)
     if validate:
       self.validate_signatures()
   
@@ -973,13 +975,9 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     except ImportError:
       izip = zip
  
-    # Populate signing keys
-    self.get_key_certs()
-
     local_digest = self.digest()
     valid_digests = 0.0
-    present_digests
-    total_digests = float(len(self.directory_authorities))
+    total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
       signed_digest = self._digest_for_signature(key, sig)
@@ -987,32 +985,25 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         valid_digests += 1.0
 
     # More than 50% of the signed digests must be present and valid
-    if ((total_digests - valid_digests) / total_digests) >= 0.5:
+    if (total_directories - valid_digests) <= (total_directories / 2.0):
       raise ValueError("Network Status Document does not have enough valid signatures")
 
   def digest(self):
     """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
-  def get_key_certs(self):
+  def set_key_certs(self, key_certs = None):
     """
-    Get the KeyCerts from tor's cache; eventually this should also support 
-    getting KeyCerts from Tor online too. Adds KeyCerts to DirectoryAuthority
-    objects.
-    Returns generator of KeyCerts 
+    Add KeyCertificates to DirectoryAuthority objects to allow signature 
+    validation of the NetworkStatusDocument. 
     """
-    from os.path import expanduser
-    path = expanduser("~/.tor/cached-certs")
-    f = open(path, 'rb')
-    key_certs = _parse_file_key_certs(f, validate=True)
 
+    # map and populate KeyCertificate to the right DirectoryAuthority 
     authorities = {da.v3ident : da for da in self.directory_authorities}
     for key_cert in key_certs:
       match = authorities.setdefault(key_cert.fingerprint, None)
       if match is not None:
         match.key_certificate = key_cert
-
-    return key_certs
 
   def get_signed_digests(self):
     """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
