@@ -947,7 +947,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     if validate and (key_certs is not None):
       self.set_key_certs(key_certs)
       self.validate_signatures()
- 
+
   def get_signing_keys(self):
     """Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD"""
     for da in self.directory_authorities:
@@ -984,7 +984,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         continue
 
       signed_digest = self._digest_for_signature(key, sig)
- 
+
       if signed_digest == local_digest:
         valid_digests += 1.0
 
@@ -1014,7 +1014,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def get_signed_digests(self):
     """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
- 
+
     self.get_key_certs()
     sigs = {sig.identity: sig for sig in self.signatures}
     for da in self.directory_authorities:
@@ -1026,7 +1026,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       except ValueError:
         # fails if no crypto module available
         raise
- 
+
   def get_unrecognized_lines(self):
     if self._lazy_loading:
       self._parse(self._header_entries, False, parser_for_line = self.HEADER_PARSER_FOR_LINE)
