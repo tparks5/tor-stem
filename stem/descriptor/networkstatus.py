@@ -980,7 +980,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
+      if key is None  or sig is None:
+        continue
+
       signed_digest = self._digest_for_signature(key, sig)
+      
       if signed_digest == local_digest:
         valid_digests += 1.0
 
