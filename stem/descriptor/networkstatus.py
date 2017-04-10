@@ -1096,8 +1096,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       signed_digest = self._digest_for_signature(key, sig)
       if signed_digest == local_digest:
         valid_digests += 1.0
-    
-    #print("Digest validation complete, %i valid digests" % int(valid_digests))
 
     # More than 50% of the signed digests must be present and valid
     if ((total_digests - valid_digests) / total_digests) >= 0.5:
@@ -1112,7 +1110,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     Get the KeyCerts from tor's cache; eventually this should also support 
     getting KeyCerts from Tor online too. Adds KeyCerts to DirectoryAuthority
     objects.
-    returns generator of KeyCerts 
+    Returns generator of KeyCerts 
     """
     from os.path import expanduser
     path = expanduser("~/.tor/cached-certs")
