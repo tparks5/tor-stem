@@ -1108,13 +1108,16 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     Add KeyCertificates to DirectoryAuthority objects to allow signature 
     validation of the NetworkStatusDocument. 
     """
-
-    # map and populate KeyCertificate to the right DirectoryAuthority 
-    authorities = {da.v3ident : da for da in self.directory_authorities}
-    for key_cert in key_certs:
-      match = authorities.setdefault(key_cert.fingerprint, None)
-      if match is not None:
-        match.key_certificate = key_cert
+    try:
+      # map and populate KeyCertificate to the right DirectoryAuthority 
+      authorities = {da.v3ident : da for da in self.directory_authorities}
+      for key_cert in key_certs:
+        match = authorities.setdefault(key_cert.fingerprint, None)
+        if match is not None:
+          match.key_certificate = key_cert
+    except TypeError:
+      # key_certs not set or non-iterable
+      return
 
   def get_signed_digests(self):
     """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
