@@ -893,7 +893,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     'directory-signature': _parse_footer_directory_signature_line,
   }
 
-  def __init__(self, raw_content, validate = False, default_params = True, key_certificates = None):
+  def __init__(self, raw_content, validate = False, default_params = True, key_certs = None):
     """
     Parse a v3 network status document.
 
@@ -944,8 +944,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
    
-    self.set_key_certs(key_certificates)
-    if validate:
+    if validate and (key_certs is not None):
+      self.set_key_certs(key_certs)
       self.validate_signatures()
   
   def get_signing_keys(self):
