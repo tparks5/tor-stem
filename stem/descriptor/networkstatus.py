@@ -1001,6 +1001,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     Get the KeyCerts from tor's cache; eventually this should also support 
     getting KeyCerts from Tor online too. Adds KeyCerts to DirectoryAuthority
     objects.
+    returns generator of KeyCerts 
     """
     from os.path import expanduser
     path = expanduser("~/.tor/cached-certs")
@@ -1012,6 +1013,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       match = authorities.setdefault(key_cert.fingerprint, None)
       if match is not None:
         match.key_certificate = key_cert
+
+    return key_certs
 
   def get_signed_digests(self):
     """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
