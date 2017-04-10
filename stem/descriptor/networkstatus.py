@@ -931,7 +931,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     if validate and self.is_vote and len(self.directory_authorities) != 1:
       raise ValueError('Votes should only have an authority entry for the one that issued it, got %i: %s' % (len(self.directory_authorities), self.directory_authorities))
-   
+
     router_iter = stem.descriptor.router_status_entry._parse_file(
       document_file,
       validate,
@@ -943,15 +943,15 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
-   
+
     if validate and (key_certs is not None):
       self.set_key_certs(key_certs)
       self.validate_signatures()
-  
+ 
   def get_signing_keys(self):
     """Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD"""
     for da in self.directory_authorities:
-      key_cert = da.key_certificate 
+      key_cert = da.key_certificate
 
       if key_cert is not None:
         yield da.key_certificate.signing_key
@@ -970,27 +970,27 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     """
 
     try:
-      from itertools import izip # for zipping generators
+      from itertools import izip  # For zipping generators in python2
     except ImportError:
       izip = zip
- 
+
     local_digest = self.digest()
     valid_digests = 0.0
     # Only 8 of the 9 directories sign a consensus
     total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
-      if key is None  or sig is None:
+      if key is None or sig is None:
         continue
 
       signed_digest = self._digest_for_signature(key, sig)
-      
+ 
       if signed_digest == local_digest:
         valid_digests += 1.0
 
     # More than 50% of the signed digests must be present and valid
     if (total_directories - valid_digests) >= (total_directories / 2.0):
-      raise ValueError("Network Status Document does not have enough valid signatures")
+      raise ValueError('Network Status Document does not have enough valid signatures')
 
   def digest(self):
     """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
@@ -998,12 +998,12 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def set_key_certs(self, key_certs = None):
     """
-    Add KeyCertificates to DirectoryAuthority objects to allow signature 
-    validation of the NetworkStatusDocument. 
+    Add KeyCertificates to DirectoryAuthority objects to allow signature
+    validation of the NetworkStatusDocument.
     """
     try:
-      # map and populate KeyCertificate to the right DirectoryAuthority 
-      authorities = {da.v3ident : da for da in self.directory_authorities}
+      # map and populate KeyCertificate to the right DirectoryAuthority
+      authorities = {da.v3ident: da for da in self.directory_authorities}
       for key_cert in key_certs:
         match = authorities.setdefault(key_cert.fingerprint, None)
         if match is not None:
@@ -1014,7 +1014,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def get_signed_digests(self):
     """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
-    
+ 
     self.get_key_certs()
     sigs = {sig.identity: sig for sig in self.signatures}
     for da in self.directory_authorities:
@@ -1025,9 +1025,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         yield signed_digest
       except ValueError:
         # fails if no crypto module available
-        raise 
-      
-
+        raise
+ 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
       self._parse(self._header_entries, False, parser_for_line = self.HEADER_PARSER_FOR_LINE)
