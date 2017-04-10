@@ -171,6 +171,7 @@ def get_consensus(authority_v3ident = None, microdescriptor = False, **query_arg
 
   return get_instance().get_consensus(authority_v3ident, microdescriptor, **query_args)
 
+
 def get_network_status_document(authority_v3ident = None, microdescriptor = False, **query_args):
   """
   shorthand for
@@ -495,26 +496,26 @@ class DescriptorDownloader(object):
     Downloads and returns the present NetworkStatusDocumentV3, because get_consensus()
     doesn't actually return a Network Status Document object.
     """
-    query_args["document_handler"] = stem.descriptor.DocumentHandler.DOCUMENT
-    
+    query_args['document_handler'] = stem.descriptor.DocumentHandler.DOCUMENT
+
     # Attempt to get fresh KeyCertifiactes from network, fall back on cache.
     # Required to validate network status document signatures.
     try:
       key_certs = DescriptorDownloader().get_key_certificates().run()
-    except (ValueError, socket.timeout, urllib2.URLError):
+    except Exception:
       from os.path import expanduser
-      path = expanduser("~/.tor/cached-certs")
+      path = expanduser('~/.tor/cached-certs')
       f = open(path, 'rb')
-      key_certs = _parse_file_key_certs(f, validate=True)
+      key_certs = descriptor.networkstatus._parse_file_key_certs(f, validate=True)
 
     # pass KeyCertificates to nsd's constructor via Query's **kwargs
-    if query_args.setdefault("key_certificates", None) is None:
-      query_args["key_certificates"] = key_certs
+    if query_args.setdefault('key_certificates', None) is None:
+      query_args['key_certificates'] = key_certs
 
     nsd = list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
-   
+
     return nsd
-    
+
   def use_directory_mirrors(self):
     """
     Downloads the present consensus and configures ourselves to use directory

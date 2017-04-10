@@ -575,7 +575,7 @@ class Descriptor(object):
 
     sig_as_bytes = _bytes_for_block(signature)
     sig_as_long = int_from_bytes(sig_as_bytes, byteorder='big')  # convert signature to an int
-    
+
     # sig is 256B for NetworkStatusDocuments, and 128B for other descriptors
     blocksize = len(sig_as_bytes)
 
