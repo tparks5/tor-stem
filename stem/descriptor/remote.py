@@ -506,7 +506,7 @@ class DescriptorDownloader(object):
       from os.path import expanduser
       path = expanduser('~/.tor/cached-certs')
       f = open(path, 'rb')
-      key_certs = descriptor.networkstatus._parse_file_key_certs(f, validate=True)
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(f, validate=True)
 
     # pass KeyCertificates to nsd's constructor via Query's **kwargs
     if query_args.setdefault('key_certificates', None) is None:
