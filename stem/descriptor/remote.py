@@ -511,7 +511,6 @@ class DescriptorDownloader(object):
     if query_args.setdefault("key_certificates", None) is None:
       query_args["key_certificates"] = key_certs
 
-    print("query_args", query_args)
     nsd = list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
    
     return nsd
