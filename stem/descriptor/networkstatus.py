@@ -967,6 +967,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     Validate DocumentSignature signed digests.
     Raises ValueError if an insufficient number of valid signatures are present.
     """
+
     try:
       from itertools import izip # for zipping generators
     except ImportError:
@@ -977,17 +978,17 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     local_digest = self.digest()
     valid_digests = 0.0
+    present_digests
     total_digests = float(len(self.directory_authorities))
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
       signed_digest = self._digest_for_signature(key, sig)
-      print("Validating", signed_digest[:7], local_digest[:7])
       if signed_digest == local_digest:
         valid_digests += 1.0
     
-    print("Digest validation complete, %i valid digests" % int(valid_digests))
+    #print("Digest validation complete, %i valid digests" % int(valid_digests))
 
-    # More than 50% of the signed digests must be valid
+    # More than 50% of the signed digests must be present and valid
     if ((total_digests - valid_digests) / total_digests) >= 0.5:
       raise ValueError("Network Status Document does not have enough valid signatures")
 
@@ -1013,18 +1014,15 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         match.key_certificate = key_cert
 
   def get_signed_digests(self):
-    """Returns list of DA-signed digests of the NetworkStatusDocumentv3"""
+    """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
     
-    print("self.signatures", self.signatures[0])
     self.get_key_certs()
     sigs = {sig.identity: sig for sig in self.signatures}
     for da in self.directory_authorities:
       key = da.key_certificate.signing_key
       sig = sigs[da.v3ident].signature
       try:
-        print("key and sig", key, sig)
         signed_digest = self._digest_for_signature(key, sig)
-        print("Signed digest", signed_digest)
         yield signed_digest
       except ValueError:
         # fails if no crypto module available
