@@ -493,24 +493,13 @@ class DescriptorDownloader(object):
 
   def get_network_status_document(self, authority_v3ident = None, microdescriptor = False, **query_args):
     """
-    Downloads and returns the present NetworkStatusDocumentV3, because get_consensus()
-    doesn't actually return a Network Status Document object.
+    Downloads and returns the present NetworkStatusDocumentV3, shorthand for
+    the appropriate get_consensus call.
+
+    :returns: :class:`~stem.descriptor.networkstatus.NetworkStatusDocumentV3`
     """
+
     query_args['document_handler'] = stem.descriptor.DocumentHandler.DOCUMENT
-
-    # Attempt to get fresh KeyCertifiactes from network, fall back on cache.
-    # Required to validate network status document signatures.
-    try:
-      key_certs = DescriptorDownloader().get_key_certificates().run()
-    except Exception:
-      from os.path import expanduser
-      path = expanduser('~/.tor/cached-certs')
-      f = open(path, 'rb')
-      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(f, validate=True)
-
-    # pass KeyCertificates to nsd's constructor via Query's **kwargs
-    if query_args.setdefault('key_certificates', None) is None:
-      query_args['key_certificates'] = key_certs
 
     nsd = list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
 
@@ -654,6 +643,20 @@ class DescriptorDownloader(object):
     :returns: :class:`~stem.descriptor.remote.Query` for the router status
       entries
     """
+
+    # Attempt to get fresh KeyCertifiactes from network, fall back on cache.
+    # Required to validate network status document signatures.
+    try:
+      key_certs = DescriptorDownloader().get_key_certificates().run()
+    except Exception:
+      from os.path import expanduser
+      path = expanduser('~/.tor/cached-certs')
+      f = open(path, 'rb')
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(f, validate=True)
+
+    # pass KeyCertificates to NetworkStatusDocument's constructor via Query's **kwargs
+    if query_args.setdefault('key_certificates', None) is None:
+      query_args['key_certificates'] = key_certs
 
     if microdescriptor:
       resource = '/tor/status-vote/current/consensus-microdesc'
