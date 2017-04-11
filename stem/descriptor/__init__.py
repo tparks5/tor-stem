@@ -580,7 +580,6 @@ class Descriptor(object):
     blocksize = len(sig_as_bytes)
 
     # use the public exponent[e] & the modulus[n] to decrypt the int
-
     decrypted_int = pow(sig_as_long, public_exponent, modulus)
 
     # convert the int to a byte array
