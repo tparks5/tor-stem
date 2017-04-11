@@ -954,7 +954,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def get_signing_keys(self):
     """
     Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD
-    
+ 
     :return: iterator for :class:`str` public signing keys
     """
     for da in self.directory_authorities:
@@ -968,7 +968,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def get_signatures(self):
     """
     Generator of DocumentSignature.signature for this NSD
-    
+ 
     :returns: iterator for :class:`str` public key signatures
     """
     for ds in self.signatures:
@@ -977,7 +977,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def validate_signatures(self):
     """
     Validate DocumentSignature signed digests.
-    
+ 
     :raises: **ValueError** if an insufficient number of valid signatures are present.
     """
 
@@ -1007,7 +1007,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def digest(self):
     """
     Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3
-    
+ 
     :returns: :class:`str` digest of NetworkStatusDocumentV3 contents.
     """
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
@@ -1017,7 +1017,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     Add KeyCertificates to DirectoryAuthority objects to allow signature
     validation of the NetworkStatusDocument.
 
-    :param list key_certs: A list of KeyCertificates to add to directory 
+    :param list key_certs: A list of KeyCertificates to add to directory
     authorities.
 
     :raises: **TypeError** if key_certs is not iterable.
@@ -1035,9 +1035,9 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
   def get_signed_digests(self):
     """
-    Returns a generator of DirectoryAuthority-signed digests of the 
+    Returns a generator of DirectoryAuthority-signed digests of the
     NetworkStatusDocumentv3.
-    
+ 
     :returns: iterator for :class:`str`
 
     :raises: ValueError if cryptography support unavailable for signature
