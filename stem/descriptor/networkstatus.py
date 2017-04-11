@@ -1056,11 +1056,18 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self._footer(document_file, validate)
 
     if validate and (key_certs is not None):
-      self.set_key_certs(key_certs)
-      self.validate_signatures()
+        try:
+          self.set_key_certs(key_certs)
+          self.validate_signatures()
+        except ValueError:
+            raise
 
   def get_signing_keys(self):
-    """Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD"""
+    """
+    Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD
+    
+    :return: iterator for :class:`str` public signing keys
+    """
     for da in self.directory_authorities:
       key_cert = da.key_certificate
 
@@ -1070,14 +1077,19 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         yield None
 
   def get_signatures(self):
-    """Generator of DocumentSignature.signature for this NSD"""
+    """
+    Generator of DocumentSignature.signature for this NSD
+    
+    :returns: iterator for :class:`str` public key signatures
+    """
     for ds in self.signatures:
       yield ds.signature
 
   def validate_signatures(self):
     """
     Validate DocumentSignature signed digests.
-    Raises ValueError if an insufficient number of valid signatures are present.
+    
+    :raises: **ValueError** if an insufficient number of valid signatures are present.
     """
 
     try:
@@ -1104,13 +1116,22 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       raise ValueError('Network Status Document does not have enough valid signatures')
 
   def digest(self):
-    """Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3"""
+    """
+    Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3
+    
+    :returns: :class:`str` digest of NetworkStatusDocumentV3 contents.
+    """
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
   def set_key_certs(self, key_certs = None):
     """
     Add KeyCertificates to DirectoryAuthority objects to allow signature
     validation of the NetworkStatusDocument.
+
+    :param list key_certs: A list of KeyCertificates to add to directory 
+    authorities.
+
+    :raises: **TypeError** if key_certs is not iterable.
     """
     try:
       # map and populate KeyCertificate to the right DirectoryAuthority
@@ -1121,10 +1142,18 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
           match.key_certificate = key_cert
     except TypeError:
       # key_certs not set or non-iterable
-      return
+      pass
 
   def get_signed_digests(self):
-    """Generator of DA-signed digests of the NetworkStatusDocumentv3"""
+    """
+    Returns a generator of DirectoryAuthority-signed digests of the 
+    NetworkStatusDocumentv3.
+    
+    :returns: iterator for :class:`str`
+
+    :raises: ValueError if cryptography support unavailable for signature
+    computation.
+    """
 
     self.get_key_certs()
     sigs = {sig.identity: sig for sig in self.signatures}
