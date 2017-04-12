@@ -655,8 +655,8 @@ class DescriptorDownloader(object):
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(f, validate=True)
 
     # pass KeyCertificates to NetworkStatusDocument's constructor via Query's **kwargs
-    if query_args.setdefault('key_certificates', None) is None:
-      query_args['key_certificates'] = key_certs
+    if query_args.setdefault('key_certs', None) is None:
+      query_args['key_cert'] = key_certs
 
     if microdescriptor:
       resource = '/tor/status-vote/current/consensus-microdesc'
