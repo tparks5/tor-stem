@@ -656,7 +656,7 @@ class DescriptorDownloader(object):
 
     # pass KeyCertificates to NetworkStatusDocument's constructor via Query's **kwargs
     if query_args.setdefault('key_certs', None) is None:
-      query_args['key_cert'] = key_certs
+      query_args['key_certs'] = key_certs
 
     if microdescriptor:
       resource = '/tor/status-vote/current/consensus-microdesc'
