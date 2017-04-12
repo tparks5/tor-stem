@@ -1286,3 +1286,57 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
     document = NetworkStatusDocumentV3(content, validate = False)
     self.assertEqual((authority,), document.directory_authorities)
+
+  def test_validate_signatures(self):
+    """
+    Test that a consensus with valid signatures is accepted, and invalid signatures is 
+    rejected with an exception.
+    """
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+
+      # happy case, should raise no exceptions
+      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
+      
+      # document field modified, should fail validation
+      content.replace(b'valid-until 2017-03-28', b'valid-until 2600-03-28')
+      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = key_certs)
+
+      # signature checks should be quietly ignored if no key certs are given
+      invalid = NetworkStatusDocumentV3(content, validate = True, key_certs = None)
+
+      # validation should fail if given nonsense key certs
+      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = "nonsense")
+      self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
+
+      # restore document integrity
+      content.replace(b'valid-until 2600-03-28', b'valid-until 2017-03-28')
+      document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
+
+      # minority of document signatures invalid, should still pass validation
+      l = len(document.signatures[0].signature)
+      document.signatures[0].signature = '0' * l
+      document.signatures[1].signature = '0' * l
+      document.validate_signatures()
+
+      # majority of document signatures invalid, should fail validation
+      for (ds, count) in zip(document.signatures, range(len(document.signatures))):
+        if count > (len(document.signatures)/2)+1:
+          break
+        ds.signature = '0' * l
+      assertRaises(ValueError, document.validate_signatures)
+
+      # minority of key certs invalid, should still pass validation
+      document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
+      l = len(document.directory_authorities[0].key_certificate.signing_key)
+      document.directory_authorities[0].key_certificate.signing_key = '0' * l
+      document.validate_signatures()
+
+      # majority key certs invalid, should fail validation
+      for (da, count) in zip(document.directory_authorities, range(len(document.directory_authorities))):
+        if count > (len(document.directory_authorities)/2)+1:
+          break
+        da.key_certificate.signing_key = '0' * l
+      assertRaises(ValueError, document.validate_signatures)
+
