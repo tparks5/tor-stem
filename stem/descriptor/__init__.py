@@ -685,10 +685,10 @@ class Descriptor(object):
     key = load_der_public_key(_bytes_for_block(signing_key), default_backend())
     modulus = key.public_numbers().n
     public_exponent = key.public_numbers().e
-    print("Signature", signature, "Key", signing_key)
+
     sig_as_bytes = _bytes_for_block(signature)
     sig_as_long = int_from_bytes(sig_as_bytes, byteorder='big')  # convert signature to an int
-    print("Sig bytes len", len(sig_as_bytes), "Key bytes len", len(_bytes_for_block(signing_key)))
+
     # sig is 256B for NetworkStatusDocuments, and 128B for other descriptors
     blocksize = len(sig_as_bytes)
 
