@@ -1140,7 +1140,18 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       # map and populate KeyCertificate to the right DirectoryAuthority
       authorities = {da.v3ident: da for da in self.directory_authorities}
       for key_cert in key_certs:
-        match = authorities.setdefault(key_cert.fingerprint, None)
+        try:
+          # Assume key_cert is a valid KeyCertificate
+          match = authorities.setdefault(key_cert.fingerprint, None)
+        except AttributeError:
+          # If key_cert isn't a KeyCertificate, try to recover by converting it
+          try:
+            key_cert = KeyCertificate(key_cert, validate = True)
+            match = authorities.setdefault(key_cert.fingerprint, None)
+          except ValueError:
+            # Give up, key_cert is nonsense
+            raise
+
         if match is not None:
           match.key_certificate = key_cert
     except TypeError:
