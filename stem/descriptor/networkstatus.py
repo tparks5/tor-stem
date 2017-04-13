@@ -988,13 +988,15 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     local_digest = self.digest()
     valid_digests = 0.0
+    digest_count = 0
     # Only 8 of the 9 directories sign a consensus
     total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
       if key is None or sig is None:
         continue
-
+      
+      digest_count += 1
       signed_digest = self._digest_for_signature(key, sig)
 
       if signed_digest == local_digest:
@@ -1002,7 +1004,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     # More than 50% of the signed digests must be present and valid
     if (total_directories - valid_digests) >= (total_directories / 2.0):
-      raise ValueError('Network Status Document does not have enough valid signatures')
+      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i' 
+              % (int(valid_digests), digest_count, int(total_directories / 2.0)))
 
   def digest(self):
     """
