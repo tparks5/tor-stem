@@ -1312,6 +1312,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
       # restore document integrity
       content.replace(b'valid-until 2600-03-28', b'valid-until 2017-03-28')
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
 
       # minority of document signatures invalid, should still pass validation
