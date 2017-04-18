@@ -1304,12 +1304,14 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
 
-      # minority of document signatures invalid, should still pass validation
-      l = len(document.signatures[0].signature)
-      document.signatures[0].signature = '0' * l
-      document.signatures[1].signature = '0' * l
-      document.validate_signatures()
+      # mangled sig should raise ValueError over malformed signature data
+      sig = document.signatures[0].signature
+      sig = sig[:373] + u'0' + sig[374:]
+      document.signatures[0].signature = sig
+      self.assertRaises(ValueError, document.validate_signatures)
 
+      # minority of document signatures invalid, should still pass validation
+      
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
         if count > (len(document.signatures)/2)+1:
