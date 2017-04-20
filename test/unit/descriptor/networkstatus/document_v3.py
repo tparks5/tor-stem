@@ -1316,6 +1316,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
       import hashlib
+      import base64
+      import codecs
       from re import search, escape
       from stem.descriptor import _bytes_for_block, Descriptor
       keys, sigs, fingerprints = [], [], []
@@ -1339,9 +1341,20 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             format = serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm = serialization.NoEncryption()))
         fingerprint = fingerprint.hexdigest().upper()
+        sig = codecs.encode(sig, 'hex_codec')
         sig = stem.util.str_tools._to_unicode(sig)
-        sig = sig.encode('utf-8')
-        print('sig type', type(sig), sig)
+        sig = sig.encode('utf-8').upper()
+        sig = base64.b64encode(sig)
+        print('sig type', type(sig), 'len', len(sig), sig)
+        formatted_sig = '-----BEGIN SIGNATURE----\n'
+        for n in range(0, len(sig)//64):
+          begin = n * 64
+          end = begin + 64
+          print('begin, end', begin, end)
+          formatted_sig = formatted_sig + sig[begin:end] + '\n'
+        formatted_sig = formatted_sig + '-----END SIGNATURE-----'
+        print('formatted sigs') 
+        print(formatted_sig)
         fingerprints.append(fingerprint)
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         print(dirsig)
