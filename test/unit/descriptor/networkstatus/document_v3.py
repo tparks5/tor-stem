@@ -1315,6 +1315,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
+      import hashlib
       from re import search, escape
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
@@ -1332,14 +1333,11 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
               salt_length = padding.PSS.MAX_LENGTH),
             hashes.SHA1())
         sigs.append(sig)
-        digest = hashes.Hash(hashes.SHA1(), default_backend())
-        digest.update(key.private_bytes(
+        fingerprint = hashlib.sha1(key.private_bytes(
             encoding = serialization.Encoding.PEM,
             format = serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm = serialization.NoEncryption()))
-        fingerprint = digest.finalize()
-        fingerprint = escape(fingerprint)
-        fingerprint = fingerprint.decode('utf-8')
+        fingerprint = fingerprint.hexdigest().upper()
         print('fingerprint type', type(fingerprint), fingerprint)
         fingerprints.append(fingerprint)
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
