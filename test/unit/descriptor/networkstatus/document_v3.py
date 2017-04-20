@@ -1327,7 +1327,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       for n in range(8):
         key = rsa.generate_private_key(
             public_exponent = 65537,
-            key_size = 2048,
+            key_size = 1024,
             backend = default_backend())
         keys.append(key)
         sig = key.sign(bytes(digest),
@@ -1346,19 +1346,28 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         sig = sig.encode('utf-8').upper()
         sig = base64.b64encode(sig)
         print('sig type', type(sig), 'len', len(sig), sig)
-        formatted_sig = '-----BEGIN SIGNATURE----\n'
+        formatted_sig = '-----BEGIN SIGNATURE-----\n'
         for n in range(0, len(sig)//64):
           begin = n * 64
           end = begin + 64
           print('begin, end', begin, end)
           formatted_sig = formatted_sig + sig[begin:end] + '\n'
-        formatted_sig = formatted_sig + '-----END SIGNATURE-----'
+        sig = formatted_sig + '-----END SIGNATURE-----'
         print('formatted sigs') 
-        print(formatted_sig)
+        print(sig) 
         fingerprints.append(fingerprint)
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         print(dirsig)
-        #sig = sig.decode('utf-8')
+        pubkey = key.public_key().public_bytes(
+                encoding = serialization.Encoding.PEM,
+                format = serialization.PublicFormat.SubjectPublicKeyInfo)
+        print('pubkey')
+        print(pubkey)
+        decrypted = document._digest_for_signature(pubkey, sig)
+        print('digest')
+        print(digest)
+        print('decrypted')
+        print(digest)
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
