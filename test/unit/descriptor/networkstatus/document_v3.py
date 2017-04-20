@@ -1339,6 +1339,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             encryption_algorithm = serialization.NoEncryption()))
         fingerprint = digest.finalize()
         fingerprint = escape(fingerprint)
+        fingerprint = fingerprint.decode('utf-8')
         print('fingerprint type', type(fingerprint), fingerprint)
         fingerprints.append(fingerprint)
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
