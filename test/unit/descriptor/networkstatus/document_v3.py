@@ -1327,19 +1327,18 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
-      from re import search 
+      from re import search, escape
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
       match = search(r"directory-signature", content)
       stripped_content = content[:match.start() - len(content)]
-      print(stripped_content)
       for n in range(8):
         key = rsa.generate_private_key(
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
         keys.append(key)
-        sig = key.sign(digest.encode('utf-8'),
+        sig = key.sign(bytes(digest),
             padding.PSS(
               mgf = padding.MGF1(hashes.SHA1()),
               salt_length = padding.PSS.MAX_LENGTH),
@@ -1351,7 +1350,11 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             format = serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm = serialization.NoEncryption()))
         fingerprint = digest.finalize()
+        fingerprint = escape(fingerprint)
+        print('fingerprint type', type(fingerprint), fingerprint)
         fingerprints.append(fingerprint)
+        dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
+        print(dirsig)
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
