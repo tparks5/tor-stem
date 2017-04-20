@@ -1346,22 +1346,18 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
               salt_length = padding.PSS.MAX_LENGTH),
             hashes.SHA1())
         sigs.append(sig)
-        key_text = key.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm = serialization.NoEncryption())
-        print(key_text)
-        print('digest_for_sig', document._digest_for_signature(digest, key_text))
         fingerprint = hashlib.sha1(key.private_bytes(
             encoding = serialization.Encoding.PEM,
             format = serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm = serialization.NoEncryption()))
         fingerprint = fingerprint.hexdigest().upper()
+        sig = stem.util.str_tools._to_unicode(sig)
+        sig = sig.encode('utf-8')
         print('sig type', type(sig), sig)
         fingerprints.append(fingerprint)
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         print(dirsig)
-        sig = sig.decode('windows-1252')
+        #sig = sig.decode('utf-8')
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
