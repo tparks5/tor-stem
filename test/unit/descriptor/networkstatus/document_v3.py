@@ -1305,6 +1305,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
 
       # mangled sig should raise ValueError over malformed signature data
+      print('mangled sig test')
       sig = document.signatures[0].signature
       sig = sig[:373] + u'0' + sig[374:]
       document.signatures[0].signature = sig
@@ -1314,8 +1315,12 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
+      from re import search 
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
+      match = search(r"directory-signature", content)
+      stripped_content = content[:match.start() - len(content)]
+      print(stripped_content)
       for n in range(8):
         key = rsa.generate_private_key(
             public_exponent = 65537,
@@ -1328,10 +1333,13 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
               salt_length = padding.PSS.MAX_LENGTH),
             hashes.SHA1())
         sigs.append(sig)
-        fingerprints.append(hashes.SHA1(key.private_bytes(
+        digest = hashes.Hash(hashes.SHA1(), default_backend())
+        digest.update(key.private_bytes(
             encoding = serialization.Encoding.PEM,
             format = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm = serialization.NoEncryption())))
+            encryption_algorithm = serialization.NoEncryption()))
+        fingerprint = digest.finalize()
+        fingerprints.append(fingerprint)
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
