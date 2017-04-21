@@ -1327,6 +1327,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
+      from cryptography.hazmat.primitives.serialization import load_pem_private_key
       from cryptography.utils import int_to_bytes, int_from_bytes
       import hashlib
       import base64
@@ -1345,8 +1346,13 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             backend = default_backend())
         keys.append(key)
         #manual RSA math
-        print(key.private_numbers())
-        mod = key.private_numbers().p * key.private_numbers().q
+        key = key.private_bytes(
+            encoding = serialization.Encoding.PEM,
+            format = serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm = serialization.NoEncryption())
+        key = load_der_private_key(key, backend = default_backend()) 
+        print(key.public_numbers())
+        mod = key.public_numbers().p * key.public_numbers().q
         exp = 65537
         print('private exponent', exp, 'private mod', mod)
         message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(bytes(digest))) + '\x00' + bytes(digest)
