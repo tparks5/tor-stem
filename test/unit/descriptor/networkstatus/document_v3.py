@@ -1327,6 +1327,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding
       from cryptography.hazmat.primitives import hashes, serialization
+      from cryptography.utils import int_to_bytes, int_from_bytes
       import hashlib
       import base64
       import codecs
@@ -1335,19 +1336,27 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
       match = search(r"directory-signature", content)
+      key_size = 1024
       stripped_content = content[:match.start() - len(content)]
       for n in range(8):
         key = rsa.generate_private_key(
             public_exponent = 65537,
-            key_size = 1024,
+            key_size = key_size,
             backend = default_backend())
         keys.append(key)
-        sig = key.sign(bytes(digest),
-            padding.PSS(
-              mgf = padding.MGF1(hashes.SHA1()),
-              salt_length = padding.PSS.MAX_LENGTH),
-            hashes.SHA1())
-        sigs.append(sig)
+        #manual RSA math
+        print(key.private_numbers())
+        mod = key.private_numbers().p * key.private_numbers().q
+        exp = key.private_numbers().d
+        print('private exponent', exp, 'private mod', mod)
+        message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(bytes(digest))) + '\x00' + bytes(digest)
+        print('message len', len(message), message)
+        message_as_long = int_from_bytes(bytes(message), byteorder='big')
+        blocksize = len(bytes(message))
+        print('blocksize', blocksize)
+        encrypted_long = pow(message_as_long, exp, mod)
+        sig = int_to_bytes(encrypted_long, blocksize)
+        #formatting magic
         fingerprint = hashlib.sha1(key.private_bytes(
             encoding = serialization.Encoding.PEM,
             format = serialization.PrivateFormat.TraditionalOpenSSL,
@@ -1357,6 +1366,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         sig = stem.util.str_tools._to_unicode(sig)
         sig = sig.encode('utf-8').upper()
         sig = base64.b64encode(sig)
+        sigs.append(sig)
         print('sig type', type(sig), 'len', len(sig), sig)
         formatted_sig = '-----BEGIN SIGNATURE-----\n'
         for n in range(0, len(sig)//64):
