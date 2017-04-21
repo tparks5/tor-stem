@@ -1324,7 +1324,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
       match = search(r"directory-signature", content)
-      key_size = 1024
+      key_size = 2048
       stripped_content = content[:match.start() - len(content)]
       for n in range(8):
         key = rsa.generate_private_key(
@@ -1335,7 +1335,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         #manual RSA math
         print(key.private_numbers())
         mod = key.private_numbers().p * key.private_numbers().q
-        exp = key.private_numbers().d
+        exp = 65537
         print('private exponent', exp, 'private mod', mod)
         message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(bytes(digest))) + '\x00' + bytes(digest)
         print('message len', len(message), message)
