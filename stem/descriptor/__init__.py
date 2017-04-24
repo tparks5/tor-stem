@@ -597,7 +597,6 @@ class Descriptor(object):
     #                esp the Notes in section 8.1
     ############################################################################
     print('_digest_for_sig', decrypted_bytes)
-    print('public exponent', public_exponent, 'public mod', modulus)
     try:
       if decrypted_bytes.index(b'\x00\x01') != 0:
         raise ValueError('Verification failed, identifier missing')
