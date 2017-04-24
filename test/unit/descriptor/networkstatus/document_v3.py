@@ -1280,13 +1280,14 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     Test that a consensus with valid signatures is accepted, and invalid signatures is 
     rejected with an exception.
     """
+    
     with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
 
       # happy case, should raise no exceptions
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
-      
+      """
       # document field modified, should fail validation
       content.replace(b'valid-until 2017-03-28', b'valid-until 2600-03-28')
       self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = key_certs)
@@ -1305,73 +1306,79 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
 
       # mangled sig should raise ValueError over malformed signature data
-      print('mangled sig test')
       sig = document.signatures[0].signature
       sig = sig[:373] + u'0' + sig[374:]
       document.signatures[0].signature = sig
       self.assertRaises(ValueError, document.validate_signatures)
-
+      """
       # minority of document signatures invalid, should still pass validation
+      print("\ninvalid signed digests\n")
       from cryptography.hazmat.backends import default_backend
-      from cryptography.hazmat.primitives.asymmetric import rsa, padding
+      from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
       from cryptography.hazmat.primitives import hashes, serialization
-      from cryptography.hazmat.primitives.serialization import load_pem_private_key
+      from cryptography.hazmat.primitives.serialization import NoEncryption
       from cryptography.utils import int_to_bytes, int_from_bytes
       import hashlib
       import base64
       import codecs
       from re import search, escape
       from stem.descriptor import _bytes_for_block, Descriptor
+      from stem.util.str_tools import _to_unicode
       keys, sigs, fingerprints = [], [], []
       digest = document.digest() 
       match = search(r"directory-signature", content)
       key_size = 2048
       stripped_content = content[:match.start() - len(content)]
       for n in range(8):
-        key = rsa.generate_private_key(
+        private_key = rsa.generate_private_key(
             public_exponent = 65537,
-            key_size = key_size,
+            key_size = 2048,
             backend = default_backend())
-        keys.append(key)
-        #manual RSA math
-        key = key.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm = serialization.NoEncryption())
-        key = load_der_private_key(key, backend = default_backend()) 
-        print(key.public_numbers())
-        mod = key.public_numbers().p * key.public_numbers().q
-        exp = 65537
-        print('private exponent', exp, 'private mod', mod)
-        message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(bytes(digest))) + '\x00' + bytes(digest)
-        print('message len', len(message), message)
-        message_as_long = int_from_bytes(bytes(message), byteorder='big')
-        blocksize = len(bytes(message))
-        print('blocksize', blocksize)
-        encrypted_long = pow(message_as_long, exp, mod)
-        sig = int_to_bytes(encrypted_long, blocksize)
-        #formatting magic
-        fingerprint = hashlib.sha1(key.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm = serialization.NoEncryption()))
-        fingerprint = fingerprint.hexdigest().upper()
+  
+        # Use Prehashed instead of hashes.SHA1 bc data is a hash already
+        sig = private_key.sign(
+            bytes(digest),
+            padding.PSS(
+              mgf = padding.MGF1(hashes.SHA1()),
+              salt_length = padding.PSS.MAX_LENGTH),
+            hashes.SHA1())
+        print("sig", type(sig), sig)
+
+        pubkey = private_key.public_key()
+        verify = pubkey.verify(
+            sig,
+            bytes(digest),
+            padding.PSS(
+              mgf = padding.MGF1(hashes.SHA1()),
+              salt_length = padding.PSS.MAX_LENGTH),
+           hashes.SHA1())
+        print("verify succeeded")
+        
+        # formatting magic to put sig in PKCS format
         sig = codecs.encode(sig, 'hex_codec')
-        sig = stem.util.str_tools._to_unicode(sig)
-        sig = sig.encode('utf-8').upper()
-        sig = base64.b64encode(sig)
-        sigs.append(sig)
-        print('sig type', type(sig), 'len', len(sig), sig)
+        print("sig codec conversion", type(sig), sig)
+        sig = _to_unicode(sig)
+        print("sig unicode conversion", type(sig), len(sig), sig)
         formatted_sig = '-----BEGIN SIGNATURE-----\n'
-        for n in range(0, len(sig)//64):
-          begin = n * 64
-          end = begin + 64
-          print('begin, end', begin, end)
-          formatted_sig = formatted_sig + sig[begin:end] + '\n'
-        sig = formatted_sig + '-----END SIGNATURE-----'
-        print('formatted sigs') 
-        print(sig) 
+        for n in range(0, len(sig), 64):
+          formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
+        sig = (formatted_sig + '-----END SIGNATURE-----').upper()
+        print('formatted sig', sig)
+
+        # generate fingerprint
+        fingerprint = hashes.Hash(hashes.SHA1(), backend = default_backend())
+        fingerprint.update(private_key.private_bytes(
+            encoding = serialization.Encoding.PEM,
+            format = serialization.PrivateFormat.PKCS8,
+            encryption_algorithm = serialization.NoEncryption()
+            ))
+        fingerprint = fingerprint.finalize()
+        fingerprint = codecs.encode(fingerprint, 'hex_codec')
+        fingerprint = _to_unicode(fingerprint).upper()
+        print("fingerprint", fingerprint)
         fingerprints.append(fingerprint)
+
+        # generate directory signature
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         print(dirsig)
         pubkey = key.public_key().public_bytes(
