@@ -1328,16 +1328,18 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       digest = document.digest() 
       match = search(r"directory-signature", content)
       key_size = 2048
-      stripped_content = content[:match.start() - len(content)]
+      # format message as per RFC 2313
+      message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
+      print('message', message)
       for n in range(8):
         private_key = rsa.generate_private_key(
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
-  
+
         # Use Prehashed instead of hashes.SHA1 bc data is a hash already
         sig = private_key.sign(
-            bytes(digest),
+            bytes(message),
             padding.PSS(
               mgf = padding.MGF1(hashes.SHA1()),
               salt_length = padding.PSS.MAX_LENGTH),
@@ -1347,28 +1349,28 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         pubkey = private_key.public_key()
         verify = pubkey.verify(
             sig,
-            bytes(digest),
+            bytes(message),
             padding.PSS(
               mgf = padding.MGF1(hashes.SHA1()),
               salt_length = padding.PSS.MAX_LENGTH),
            hashes.SHA1())
-        print("verify succeeded")
+        print("verify succeeded\n")
         
         # formatting magic to put sig in PKCS format
         sig = codecs.encode(sig, 'hex_codec')
         print("sig codec conversion", type(sig), sig)
         sig = _to_unicode(sig)
         print("sig unicode conversion", type(sig), len(sig), sig)
-        formatted_sig = '-----BEGIN SIGNATURE-----\n'
+        formatted_sig = ''
         for n in range(0, len(sig), 64):
           formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
-        sig = (formatted_sig + '-----END SIGNATURE-----').upper()
+        sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----').upper()
         print('formatted sig', sig)
 
         # generate fingerprint
         fingerprint = hashes.Hash(hashes.SHA1(), backend = default_backend())
         fingerprint.update(private_key.private_bytes(
-            encoding = serialization.Encoding.PEM,
+            encoding = serialization.Encoding.DER,
             format = serialization.PrivateFormat.PKCS8,
             encryption_algorithm = serialization.NoEncryption()
             ))
@@ -1381,16 +1383,24 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         # generate directory signature
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         print(dirsig)
-        pubkey = key.public_key().public_bytes(
-                encoding = serialization.Encoding.PEM,
+
+        # generate pubkey in correct format
+        pubkey = private_key.public_key().public_bytes(
+                encoding = serialization.Encoding.DER,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
-        print('pubkey')
+        pubkey = codecs.encode(pubkey, 'hex_codec')
+        pubkey = _to_unicode(pubkey)
+        formatted_key = ''
+        for n in range(0, len(pubkey), 64):
+          formatted_key = formatted_key + pubkey[n:n +64] + '\n'
+        pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----\n').upper()
+        print('\npubkey')
         print(pubkey)
         decrypted = document._digest_for_signature(pubkey, sig)
         print('digest')
         print(digest)
         print('decrypted')
-        print(digest)
+        print(decrypted)
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
