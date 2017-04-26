@@ -709,6 +709,10 @@ class Descriptor(object):
     # More info here http://www.ietf.org/rfc/rfc2313.txt
     #                esp the Notes in section 8.1
     ############################################################################
+    from cryptography.hazmat.primitives import serialization
+    print('_digest_for_sig exp', public_exponent, 'mod', modulus)
+    print('_digest_for_sig key') 
+    print(key.public_bytes(encoding = serialization.Encoding.PEM, format = serialization.PublicFormat.PKCS1))
     print('_digest_for_sig', decrypted_bytes)
     try:
       if decrypted_bytes.index(b'\x00\x01') != 0:

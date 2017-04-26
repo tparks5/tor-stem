@@ -1317,7 +1317,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
       from cryptography.hazmat.primitives import hashes, serialization
-      from cryptography.hazmat.primitives.serialization import NoEncryption
+      from cryptography.hazmat.primitives.serialization import load_der_public_key
       from cryptography.utils import int_to_bytes, int_from_bytes
       import hashlib
       import base64
@@ -1338,24 +1338,10 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             key_size = 2048,
             backend = default_backend())
 
-        # Use Prehashed instead of hashes.SHA1 bc data is a hash already
-        sig = private_key.sign(
-            bytes(message),
-            padding.PSS(
-              mgf = padding.MGF1(hashes.SHA1()),
-              salt_length = padding.PSS.MAX_LENGTH),
-            hashes.SHA1())
-        print("sig", type(sig), sig)
-
-        pubkey = private_key.public_key()
-        verify = pubkey.verify(
-            sig,
-            bytes(message),
-            padding.PSS(
-              mgf = padding.MGF1(hashes.SHA1()),
-              salt_length = padding.PSS.MAX_LENGTH),
-           hashes.SHA1())
-        print("verify succeeded\n")
+        pubkey = private_key.public_key().public_bytes(
+                encoding = serialization.Encoding.DER,
+                format = serialization.PublicFormat.PKCS1)
+        pubkey = load_der_public_key(pubkey, default_backend())
 
         #create manual sig
         l = len(message)
@@ -1364,10 +1350,9 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         e = pubkey.public_numbers().e
         n = pubkey.public_numbers().n
         sig = pow(m, d, n)
-        # check math is right by decrypting
-        signed_message = pow(sig, e, n)
-        signed_message = int_to_bytes(signed_message, l)
-        print('digest', digest, 'signed message', signed_message)
+        verify = pow(sig, e, n)
+        print('public exp', e, 'modulus', n)
+        print('digest', digest, 'message', int_to_bytes(verify, l))
         sig = int_to_bytes(sig, l)
 
         # formatting magic to put sig in PKCS format
