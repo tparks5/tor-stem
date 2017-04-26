@@ -1368,14 +1368,28 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
               salt_length = padding.PSS.MAX_LENGTH),
            hashes.SHA1())
         print("verify succeeded\n")
-        
+
+        #create manual sig
+        l = len(message)
+        m = int_from_bytes(message, byteorder='big')
+        d = private_key.private_numbers().d
+        e = pubkey.public_numbers().e
+        n = pubkey.public_numbers().n
+        sig = pow(m, d, n)
+        # check math is right by decrypting
+        signed_message = pow(sig, e, n)
+        signed_message = int_to_bytes(signed_message, l)
+        print('digest', digest, 'signed message', signed_message)
+        sig = int_to_bytes(sig, l)
+
         # formatting magic to put sig in PKCS format
-        sig = base64.b64encode(sig)
-        print("sig base64 conversion", type(sig), len(sig), sig)
+        print("sig type", type(sig), sig)
         sig = codecs.encode(sig, 'hex_codec')
         print("sig codec conversion", type(sig), sig)
         sig = _to_unicode(sig)
         print("sig unicode conversion", type(sig), len(sig), sig)
+        sig = base64.b64encode(sig)
+        print("sig base64 conversion", type(sig), len(sig), sig)
         formatted_sig = ''
         for n in range(0, len(sig), 64):
           formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
@@ -1401,15 +1415,16 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
         # generate pubkey in correct format
         pubkey = private_key.public_key().public_bytes(
-                encoding = serialization.Encoding.DER,
+                encoding = serialization.Encoding.PEM,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
-        pubkey = base64.b64encode(pubkey)
+        """pubkey = base64.b64encode(pubkey)
         pubkey = codecs.encode(pubkey, 'hex_codec')
         pubkey = _to_unicode(pubkey)
         formatted_key = ''
         for n in range(0, len(pubkey), 64):
           formatted_key = formatted_key + pubkey[n:n +64] + '\n'
         pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----')
+        """
         print('\npubkey')
         print(pubkey)
         
