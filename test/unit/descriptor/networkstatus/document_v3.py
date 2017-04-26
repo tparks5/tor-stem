@@ -1298,6 +1298,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       content = document_file.read()
 
       # happy case, should raise no exceptions
+      print("happy case")
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       """
       # document field modified, should fail validation
@@ -1369,6 +1370,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         print("verify succeeded\n")
         
         # formatting magic to put sig in PKCS format
+        sig = base64.b64encode(sig)
+        print("sig base64 conversion", type(sig), len(sig), sig)
         sig = codecs.encode(sig, 'hex_codec')
         print("sig codec conversion", type(sig), sig)
         sig = _to_unicode(sig)
@@ -1376,7 +1379,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         formatted_sig = ''
         for n in range(0, len(sig), 64):
           formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
-        sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----').upper()
+        sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
         print('formatted sig', sig)
 
         # generate fingerprint
@@ -1388,7 +1391,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             ))
         fingerprint = fingerprint.finalize()
         fingerprint = codecs.encode(fingerprint, 'hex_codec')
-        fingerprint = _to_unicode(fingerprint).upper()
+        fingerprint = _to_unicode(fingerprint)
         print("fingerprint", fingerprint)
         fingerprints.append(fingerprint)
 
@@ -1400,14 +1403,24 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         pubkey = private_key.public_key().public_bytes(
                 encoding = serialization.Encoding.DER,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
+        pubkey = base64.b64encode(pubkey)
         pubkey = codecs.encode(pubkey, 'hex_codec')
         pubkey = _to_unicode(pubkey)
         formatted_key = ''
         for n in range(0, len(pubkey), 64):
           formatted_key = formatted_key + pubkey[n:n +64] + '\n'
-        pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----\n').upper()
+        pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----')
         print('\npubkey')
         print(pubkey)
+
+        # debugging conversion back to bytes
+        b_pubkey = ''.join(pubkey.split('\n')[1:-1])
+        print('split pubkey'); print(b_pubkey)
+        stem.util.str_tools._to_bytes(b_pubkey)
+        print('to bytes pubkey', b_pubkey)
+        b_pubkey = base64.b64decode(b_pubkey)
+        print('from base64 pubkey', b_pubkey)
+        
         decrypted = document._digest_for_signature(pubkey, sig)
         print('digest')
         print(digest)
