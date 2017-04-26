@@ -683,8 +683,6 @@ class Descriptor(object):
     from cryptography.utils import int_to_bytes, int_from_bytes
     print('_digest_for_sig key input:'); print(signing_key)
     print('_digest_for_sig sig input:'); print(signature)
-    print('_digest_for_sig raw key:', _bytes_for_block(signing_key))
-    print('_digest_for_sig raw sig:', _bytes_for_block(signature))
     key = load_der_public_key(_bytes_for_block(signing_key), default_backend())
     modulus = key.public_numbers().n
     public_exponent = key.public_numbers().e
