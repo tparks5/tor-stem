@@ -1412,15 +1412,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----')
         print('\npubkey')
         print(pubkey)
-
-        # debugging conversion back to bytes
-        b_pubkey = ''.join(pubkey.split('\n')[1:-1])
-        print('split pubkey'); print(b_pubkey)
-        stem.util.str_tools._to_bytes(b_pubkey)
-        print('to bytes pubkey', b_pubkey)
-        b_pubkey = base64.b64decode(b_pubkey)
-        print('from base64 pubkey', b_pubkey)
         
+        # test that Stem can decrypt the signature too
         decrypted = document._digest_for_signature(pubkey, sig)
         print('digest')
         print(digest)
