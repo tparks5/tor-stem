@@ -597,6 +597,7 @@ class Descriptor(object):
     #                esp the Notes in section 8.1
     ############################################################################
     from cryptography.hazmat.primitives import serialization
+    print('_digest_for_sig encrypted bytes', sig_as_bytes)
     print('_digest_for_sig exp', public_exponent, 'mod', modulus)
     print('_digest_for_sig key') 
     print(key.public_bytes(encoding = serialization.Encoding.PEM, format = serialization.PublicFormat.PKCS1))
@@ -614,8 +615,8 @@ class Descriptor(object):
       seperator_index = decrypted_bytes.index(b'\x00', identifier_offset)
     except ValueError:
       raise ValueError('Verification failed, seperator not found')
-
-    digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec')
+    print('decrypted digest', decrypted_bytes[seperator_index + 1:])
+    digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec'); print('digest hex', digest_hex)
     return stem.util.str_tools._to_unicode(digest_hex.upper())
 
   def _digest_for_content(self, start, end):

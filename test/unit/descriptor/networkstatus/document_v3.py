@@ -1338,11 +1338,13 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from stem.descriptor import _bytes_for_block, Descriptor
       from stem.util.str_tools import _to_unicode
       keys, sigs, fingerprints = [], [], []
-      digest = document.digest() 
+      digest = document.digest()
+      formatted_digest = codecs.decode(digest, 'hex_codec')
+      print('hex digest', formatted_digest)
       match = search(r"directory-signature", content)
       key_size = 2048
       # format message as per RFC 2313
-      message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
+      message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(formatted_digest)) + b'\x00' + bytes(formatted_digest)
       print('message', message)
       for n in range(8):
         private_key = rsa.generate_private_key(
@@ -1363,18 +1365,18 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         n = pubkey.public_numbers().n
         sig = pow(m, d, n)
         verify = pow(sig, e, n)
-        print('public exp', e, 'modulus', n)
-        print('digest', digest, 'message', int_to_bytes(verify, l))
+        #print('public exp', e, 'modulus', n)
+        #print('digest', digest, 'decrypted message', int_to_bytes(verify, l))
         sig = int_to_bytes(sig, l)
 
         # formatting magic to put sig in PKCS format
-        print("sig type", type(sig), sig)
-        sig = codecs.encode(sig, 'hex_codec')
-        print("sig codec conversion", type(sig), sig)
-        sig = _to_unicode(sig)
-        print("sig unicode conversion", type(sig), len(sig), sig)
+        #print("sig type", type(sig), sig)
         sig = base64.b64encode(sig)
-        print("sig base64 conversion", type(sig), len(sig), sig)
+        #print("sig base64 conversion", type(sig), len(sig), sig)
+        #sig = codecs.encode(sig, 'hex_codec')
+        #print("sig codec conversion", type(sig), sig)
+        sig = _to_unicode(sig)
+        #print("sig unicode conversion", type(sig), len(sig), sig)
         formatted_sig = ''
         for n in range(0, len(sig), 64):
           formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
@@ -1391,12 +1393,12 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         fingerprint = fingerprint.finalize()
         fingerprint = codecs.encode(fingerprint, 'hex_codec')
         fingerprint = _to_unicode(fingerprint)
-        print("fingerprint", fingerprint)
+        #print("fingerprint", fingerprint)
         fingerprints.append(fingerprint)
 
         # generate directory signature
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
-        print(dirsig)
+        #print(dirsig)
 
         # generate pubkey in correct format
         pubkey = private_key.public_key().public_bytes(
@@ -1419,6 +1421,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         print(digest)
         print('decrypted')
         print(decrypted)
+        break
 
       # majority of document signatures invalid, should fail validation
       for (ds, count) in zip(document.signatures, range(len(document.signatures))):
