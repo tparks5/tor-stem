@@ -1024,31 +1024,22 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :param :class: `str` password: The password protecting the RSA private key.
     None.
 
-    :returns: **str** signature in PEM encoded format.
+    :returns: :class: `str` signature in PEM encoded format.
     """
     from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
-    from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.serialization import load_pem_private_key
     from cryptography.utils import int_to_bytes, int_from_bytes
-    import hashlib
     import base64
     import codecs
-    from re import search, escape
-    from stem.descriptor import _bytes_for_block, Descriptor
     from stem.util.str_tools import _to_unicode
-    
-    if document is None:
-      document = self
 
-    digest = document.digest()
+    digest = self.digest()
     formatted_digest = codecs.decode(digest, 'hex_codec')
     
     key = load_pem_private_key(private_key, password, default_backend())
     key_size = key.key_size
     # format message as per RFC 2313
     message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(formatted_digest)) + b'\x00' + bytes(formatted_digest)
-    print('message', message)
     
     # Create manual sig
     l = len(message)
@@ -1066,7 +1057,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
     sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
     return sig
-
+    
   def set_key_certs(self, key_certs = None):
     """
     Add KeyCertificates to DirectoryAuthority objects to allow signature
