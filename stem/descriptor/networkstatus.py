@@ -1176,7 +1176,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     for n in range(0, len(sig), 64):
       formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
     sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
-    print('formatted sig', sig)
     return sig
 
   def set_key_certs(self, key_certs = None):
