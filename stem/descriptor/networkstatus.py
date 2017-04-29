@@ -1043,7 +1043,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     digest = document.digest()
     formatted_digest = codecs.decode(digest, 'hex_codec')
-    #print('hex digest', formatted_digest)
     
     key = load_pem_private_key(private_key, password, default_backend())
     key_size = key.key_size
@@ -1055,22 +1054,13 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     l = len(message)
     m = int_from_bytes(message, byteorder='big')
     d = key.private_numbers().d
-    #e = pubkey.public_numbers().e
     n = key.private_numbers().public_numbers.n
     sig = pow(m, d, n)
-    #verify = pow(sig, e, n)
-    #print('public exp', e, 'modulus', n)
-    #print('digest', digest, 'decrypted message', int_to_bytes(verify, l))
     sig = int_to_bytes(sig, l)
 
-    # formatting magic to put sig in PKCS format
-    #print("sig type", type(sig), sig)
+    # PKCS1 formatting sig
     sig = base64.b64encode(sig)
-    #print("sig base64 conversion", type(sig), len(sig), sig)
-    #sig = codecs.encode(sig, 'hex_codec')
-    #print("sig codec conversion", type(sig), sig)
     sig = _to_unicode(sig)
-    #print("sig unicode conversion", type(sig), len(sig), sig)
     formatted_sig = ''
     for n in range(0, len(sig), 64):
       formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
