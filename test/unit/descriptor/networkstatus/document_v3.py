@@ -1344,7 +1344,6 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
-        keys.append(private_key)
 
         # generate private key in PEM format
         pk = private_key.private_bytes(
@@ -1352,6 +1351,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
                 format = serialization.PrivateFormat.PKCS8,
                 encryption_algorithm = serialization.NoEncryption())
         
+        keys.append(pk)
         sig = document.sign(pk) 
 
         # generate public_key in PEM format
@@ -1364,7 +1364,15 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         self.assertEqual(digest, decrypted)
 
       # invalidate a couple signatures
-        
+      print('key')
+      print(keys[0])
+      print('good digest'); print(digest)
+      digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
+      sig = document.sign(keys[0], None, digest)
+      document.signatures[0].signature = sig
+      sig = document.sign(keys[1], None, digest)
+      document.signatures[1].signature = sig
+      print('bad digest'); print(digest)
       document.validate_signatures()
 """ 
       # majority of document signatures invalid, should fail validation
