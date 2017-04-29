@@ -1069,12 +1069,10 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :raises: **TypeError** if key_certs is not iterable.
     :raises: **ValueError** if key_certs contains no KeyCertificates 
     """
-    print("\nkey_certs loop", key_certs)
     try:
       # map and populate KeyCertificate to the right DirectoryAuthority
       authorities = {da.v3ident: da for da in self.directory_authorities}
       for key_cert in key_certs:
-        print("key_cert", key_cert)
         try:
           # Assume key_cert is a valid KeyCertificate
           match = authorities.setdefault(key_cert.fingerprint, None)
@@ -1084,13 +1082,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
             key_cert = KeyCertificate(key_cert, validate = True)
             match = authorities.setdefault(key_cert.fingerprint, None)
           except ValueError as exc:
-            print("Cannot convert to KeyCertificate", exc)
             raise 
 
         if match is not None:
           match.key_certificate = key_cert
     except TypeError as exc:
-      print("KeyCertificates not given or not iterable", exc)
       raise 
 
   def get_signed_digests(self):

@@ -1298,7 +1298,6 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       content = document_file.read()
 
       # happy case, should raise no exceptions
-      print("\nhappy case\n")
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       """
       # document field modified, should fail validation
@@ -1325,7 +1324,6 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       self.assertRaises(ValueError, document.validate_signatures)
       """
       # minority of document signatures invalid, should still pass validation
-      print("\ninvalid signed digests\n")
       from cryptography.hazmat.backends import default_backend
       from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
       from cryptography.hazmat.primitives import hashes, serialization
@@ -1337,16 +1335,18 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from re import search, escape
       from stem.descriptor import _bytes_for_block, Descriptor
       from stem.util.str_tools import _to_unicode
-      keys, sigs, fingerprints = [], [], []
+      keys = []
       match = search(r"directory-signature", content)
       digest = document.digest()
       for docsig in document.signatures:
+        # create new rsa key pair
         private_key = rsa.generate_private_key(
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
         keys.append(private_key)
 
+        # generate private key in PEM format
         pk = private_key.private_bytes(
                 encoding = serialization.Encoding.PEM,
                 format = serialization.PrivateFormat.PKCS8,
@@ -1354,17 +1354,13 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         
         sig = document.sign(pk) 
 
-        # generate public_key in correct format
+        # generate public_key in PEM format
         public_key = private_key.public_key().public_bytes(
                 encoding = serialization.Encoding.PEM,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
         
         # test that Stem can decrypt the signature
         decrypted = document._digest_for_signature(public_key, sig)
-        print('digest')
-        print(digest)
-        print('decrypted')
-        print(decrypted)
         self.assertEqual(digest, decrypted)
 
       document.validate_signatures()

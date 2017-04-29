@@ -568,8 +568,6 @@ class Descriptor(object):
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives.serialization import load_der_public_key
     from cryptography.utils import int_to_bytes, int_from_bytes
-    print('_digest_for_sig key input:'); print(signing_key)
-    print('_digest_for_sig sig input:'); print(signature)
     key = load_der_public_key(_bytes_for_block(signing_key), default_backend())
     modulus = key.public_numbers().n
     public_exponent = key.public_numbers().e
@@ -596,12 +594,7 @@ class Descriptor(object):
     # More info here http://www.ietf.org/rfc/rfc2313.txt
     #                esp the Notes in section 8.1
     ############################################################################
-    from cryptography.hazmat.primitives import serialization
-    print('_digest_for_sig encrypted bytes', sig_as_bytes)
-    print('_digest_for_sig exp', public_exponent, 'mod', modulus)
-    print('_digest_for_sig key') 
-    print(key.public_bytes(encoding = serialization.Encoding.PEM, format = serialization.PublicFormat.PKCS1))
-    print('_digest_for_sig', decrypted_bytes)
+
     try:
       if decrypted_bytes.index(b'\x00\x01') != 0:
         raise ValueError('Verification failed, identifier missing')
@@ -615,8 +608,7 @@ class Descriptor(object):
       seperator_index = decrypted_bytes.index(b'\x00', identifier_offset)
     except ValueError:
       raise ValueError('Verification failed, seperator not found')
-    print('decrypted digest', decrypted_bytes[seperator_index + 1:])
-    digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec'); print('digest hex', digest_hex)
+    digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec')
     return stem.util.str_tools._to_unicode(digest_hex.upper())
 
   def _digest_for_content(self, start, end):
