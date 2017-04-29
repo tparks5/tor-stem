@@ -1366,7 +1366,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         print('decrypted')
         print(decrypted)
         self.assertEqual(digest, decrypted)
-        break
+
+      document.validate_signatures()
 """ 
       # majority of document signatures invalid, should fail validation
       header = "-----BEGIN SIGNATURE-----\n"
