@@ -1328,23 +1328,20 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       keys, sigs, fingerprints = [], [], []
       match = search(r"directory-signature", content)
       digest = document.digest()
-      for n in range(8):
+      for docsig in document.signatures:
         private_key = rsa.generate_private_key(
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
         keys.append(private_key)
 
-        public_key = private_key.public_key().public_bytes(
-                encoding = serialization.Encoding.DER,
-                format = serialization.PublicFormat.PKCS1)
-
         pk = private_key.private_bytes(
                 encoding = serialization.Encoding.PEM,
                 format = serialization.PrivateFormat.PKCS8,
                 encryption_algorithm = serialization.NoEncryption())
+        
         sig = document.sign(pk)
-
+        
         # generate fingerprint
         fingerprint = hashes.Hash(hashes.SHA1(), backend = default_backend())
         fingerprint.update(private_key.private_bytes(
