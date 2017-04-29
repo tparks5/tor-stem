@@ -1286,7 +1286,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       content = document_file.read()
 
       # happy case, should raise no exceptions
-      print("happy case")
+      print("\nhappy case\n")
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       """
       # document field modified, should fail validation
@@ -1326,50 +1326,24 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from stem.descriptor import _bytes_for_block, Descriptor
       from stem.util.str_tools import _to_unicode
       keys, sigs, fingerprints = [], [], []
-      digest = document.digest()
-      formatted_digest = codecs.decode(digest, 'hex_codec')
-      print('hex digest', formatted_digest)
       match = search(r"directory-signature", content)
-      key_size = 2048
-      # format message as per RFC 2313
-      message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(formatted_digest)) + b'\x00' + bytes(formatted_digest)
-      print('message', message)
+      digest = document.digest()
       for n in range(8):
         private_key = rsa.generate_private_key(
             public_exponent = 65537,
             key_size = 2048,
             backend = default_backend())
+        keys.append(private_key)
 
-        pubkey = private_key.public_key().public_bytes(
+        public_key = private_key.public_key().public_bytes(
                 encoding = serialization.Encoding.DER,
                 format = serialization.PublicFormat.PKCS1)
-        pubkey = load_der_public_key(pubkey, default_backend())
 
-        #create manual sig
-        l = len(message)
-        m = int_from_bytes(message, byteorder='big')
-        d = private_key.private_numbers().d
-        e = pubkey.public_numbers().e
-        n = pubkey.public_numbers().n
-        sig = pow(m, d, n)
-        verify = pow(sig, e, n)
-        #print('public exp', e, 'modulus', n)
-        #print('digest', digest, 'decrypted message', int_to_bytes(verify, l))
-        sig = int_to_bytes(sig, l)
-
-        # formatting magic to put sig in PKCS format
-        #print("sig type", type(sig), sig)
-        sig = base64.b64encode(sig)
-        #print("sig base64 conversion", type(sig), len(sig), sig)
-        #sig = codecs.encode(sig, 'hex_codec')
-        #print("sig codec conversion", type(sig), sig)
-        sig = _to_unicode(sig)
-        #print("sig unicode conversion", type(sig), len(sig), sig)
-        formatted_sig = ''
-        for n in range(0, len(sig), 64):
-          formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
-        sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
-        print('formatted sig', sig)
+        pk = private_key.private_bytes(
+                encoding = serialization.Encoding.PEM,
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption())
+        sig = document.sign(pk)
 
         # generate fingerprint
         fingerprint = hashes.Hash(hashes.SHA1(), backend = default_backend())
@@ -1388,46 +1362,39 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
         #print(dirsig)
 
-        # generate pubkey in correct format
-        pubkey = private_key.public_key().public_bytes(
+        # generate public_key in correct format
+        public_key = private_key.public_key().public_bytes(
                 encoding = serialization.Encoding.PEM,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
-        """pubkey = base64.b64encode(pubkey)
-        pubkey = codecs.encode(pubkey, 'hex_codec')
-        pubkey = _to_unicode(pubkey)
-        formatted_key = ''
-        for n in range(0, len(pubkey), 64):
-          formatted_key = formatted_key + pubkey[n:n +64] + '\n'
-        pubkey = ('-----BEGIN RSA PUBLIC KEY-----\n' + formatted_key + '-----END RSA PUBLIC KEY-----')
-        """
-        print('\npubkey')
-        print(pubkey)
         
-        # test that Stem can decrypt the signature too
-        decrypted = document._digest_for_signature(pubkey, sig)
+        # test that Stem can decrypt the signature
+        decrypted = document._digest_for_signature(public_key, sig)
         print('digest')
         print(digest)
         print('decrypted')
         print(decrypted)
+        self.assertEqual(digest, decrypted)
         break
-
+""" 
       # majority of document signatures invalid, should fail validation
-      for (ds, count) in zip(document.signatures, range(len(document.signatures))):
-        if count > ((len(document.signatures)/2)+1):
-          break
-        ds.signature = '0' * l
-      assertRaises(ValueError, document.validate_signatures)
+      header = "-----BEGIN SIGNATURE-----\n"
+      footer = "-----END SIGNATURE-----"
+      header_len = len(header)
+      footer_len = len(footer)
+      body_len = len(document.signatures[0].signature) - header_len - footer_len
+      invalid_sig = header + ((('0' * 64) + '\n') * (body_len // 64)) + footer
+      for (ds, count) in zip(document.signatures, range((len(document.signatures) // 2) + 1)): 
+        ds.signature = invalid_sig
+      self.assertRaises(ValueError, document.validate_signatures)
 
       # minority of key certs invalid, should still pass validation
-      document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
+      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       l = len(document.directory_authorities[0].key_certificate.signing_key)
       document.directory_authorities[0].key_certificate.signing_key = '0' * l
       document.validate_signatures()
 
       # majority key certs invalid, should fail validation
-      for (da, count) in zip(document.directory_authorities, range(len(document.directory_authorities))):
-        if count > (len(document.directory_authorities)/2)+1:
-          break
+      for (da, count) in zip(document.directory_authorities, range((len(document.directory_authorities) // 2) + 1)):
         da.key_certificate.signing_key = '0' * l
-      assertRaises(ValueError, document.validate_signatures)
-
+      self.assertRaises(ValueError, document.validate_signatures)
+"""
