@@ -1126,14 +1126,13 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     """
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
-  def sign(self, private_key, password=None, document=None):
+  def sign(self, private_key, password=None):
     """
     Sign the digest of the body and header of a NetworkStatusDocumentV3 with an
     RSA private key.
 
     :param :class: `str` key: A PEM encoded RSA private key.
     :param :class: `str` password: The password protecting the RSA private key.
-    :param :class: `NetworkStatusDocument` document: A document to sign, assumes self if
     None.
 
     :returns: **str** signature in PEM encoded format.
