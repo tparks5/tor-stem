@@ -1352,24 +1352,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
                 format = serialization.PrivateFormat.PKCS8,
                 encryption_algorithm = serialization.NoEncryption())
         
-        sig = document.sign(pk)
-        
-        # generate fingerprint
-        fingerprint = hashes.Hash(hashes.SHA1(), backend = default_backend())
-        fingerprint.update(private_key.private_bytes(
-            encoding = serialization.Encoding.DER,
-            format = serialization.PrivateFormat.PKCS8,
-            encryption_algorithm = serialization.NoEncryption()
-            ))
-        fingerprint = fingerprint.finalize()
-        fingerprint = codecs.encode(fingerprint, 'hex_codec')
-        fingerprint = _to_unicode(fingerprint)
-        #print("fingerprint", fingerprint)
-        fingerprints.append(fingerprint)
-
-        # generate directory signature
-        dirsig = "directory-signature " + fingerprint + " " + fingerprint + "\n" + sig
-        #print(dirsig)
+        sig = document.sign(pk) 
 
         # generate public_key in correct format
         public_key = private_key.public_key().public_bytes(
