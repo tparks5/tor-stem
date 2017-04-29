@@ -1126,14 +1126,15 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     """
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
-  def sign(self, private_key, password=None):
+  def sign(self, private_key, password=None, digest=None):
     """
     Sign the digest of the body and header of a NetworkStatusDocumentV3 with an
     RSA private key.
 
     :param :class: `str` key: A PEM encoded RSA private key.
     :param :class: `str` password: The password protecting the RSA private key.
-    None.
+    :param :class: `str` digest: A digest to sign with the private key as a 
+    string containing hex digits, self.digest() will be used if None.
 
     :returns: :class: `str` signature in PEM encoded format.
     """
@@ -1144,13 +1145,14 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     import codecs
     from stem.util.str_tools import _to_unicode
 
-    digest = self.digest()
-    formatted_digest = codecs.decode(digest, 'hex_codec')
+    if digest is None:
+      digest = self.digest()
+    digest = codecs.decode(digest, 'hex_codec')
     
     key = load_pem_private_key(private_key, password, default_backend())
     key_size = key.key_size
     # format message as per RFC 2313
-    message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(formatted_digest)) + b'\x00' + bytes(formatted_digest)
+    message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
     
     # Create manual sig
     l = len(message)
