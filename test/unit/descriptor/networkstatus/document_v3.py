@@ -1363,6 +1363,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         decrypted = document._digest_for_signature(public_key, sig)
         self.assertEqual(digest, decrypted)
 
+      # invalidate a couple signatures
+        
       document.validate_signatures()
 """ 
       # majority of document signatures invalid, should fail validation
