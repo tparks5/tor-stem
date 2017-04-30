@@ -1359,29 +1359,23 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         self.assertEqual(digest, decrypted)
 
       # invalidate a couple signatures
-      digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
+      bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
       
-      sig = document.sign(keys[0][0], None, digest)
+      sig = document.sign(keys[0][0], None, bad_digest)
       document.signatures[0].signature = sig
-      document.directory_authorities[0].key_certificate.signing_key = keys[0][1]
 
-      sig = document.sign(keys[1][0], None, digest)
+      sig = document.sign(keys[1][0], None, bad_digest)
       document.signatures[1].signature = sig
-      document.directory_authorities[1].key_certificate.signing_key = keys[1][1]
       
       document.validate_signatures()
-""" 
+ 
       # majority of document signatures invalid, should fail validation
-      header = "-----BEGIN SIGNATURE-----\n"
-      footer = "-----END SIGNATURE-----"
-      header_len = len(header)
-      footer_len = len(footer)
-      body_len = len(document.signatures[0].signature) - header_len - footer_len
-      invalid_sig = header + ((('0' * 64) + '\n') * (body_len // 64)) + footer
-      for (ds, count) in zip(document.signatures, range((len(document.signatures) // 2) + 1)): 
-        ds.signature = invalid_sig
-      self.assertRaises(ValueError, document.validate_signatures)
+      for n in range((len(document.signatures) // 2) +1):
+        sig = document.sign(keys[n][0], None, bad_digest)
+        document.signatures[n].signature = sig
 
+      self.assertRaises(ValueError, document.validate_signatures)
+"""
       # minority of key certs invalid, should still pass validation
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       l = len(document.directory_authorities[0].key_certificate.signing_key)
