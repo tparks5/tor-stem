@@ -1335,7 +1335,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       from re import search, escape
       from stem.descriptor import _bytes_for_block, Descriptor
       from stem.util.str_tools import _to_unicode
-      keys = []
+      keys, sigs = [], []
       match = search(r"directory-signature", content)
       digest = document.digest()
       for n in range(len(document.signatures)):
@@ -1362,6 +1362,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
        
         # give NSD custom signature
         document.signatures[n].signature = sig
+        sigs.append(sig)
 
         # give NSD the right public key for validate_signatures() to use
         document.directory_authorities[n].key_certificate.signing_key = public_key
@@ -1370,7 +1371,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         decrypted = document._digest_for_signature(public_key, sig)
         self.assertEqual(digest, decrypted)
 
-      # invalidate a couple signatures
+      # invalidate a couple signatures, should pass validation
       bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
       
       sig = document.sign(keys[0][0], None, bad_digest)
@@ -1387,15 +1388,4 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         document.signatures[n].signature = sig
 
       self.assertRaises(ValueError, document.validate_signatures)
-"""
-      # minority of key certs invalid, should still pass validation
-      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
-      l = len(document.directory_authorities[0].key_certificate.signing_key)
-      document.directory_authorities[0].key_certificate.signing_key = '0' * l
-      document.validate_signatures()
-
-      # majority key certs invalid, should fail validation
-      for (da, count) in zip(document.directory_authorities, range((len(document.directory_authorities) // 2) + 1)):
-        da.key_certificate.signing_key = '0' * l
-      self.assertRaises(ValueError, document.validate_signatures)
-"""
+      
