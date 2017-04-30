@@ -995,7 +995,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
       if key is None or sig is None:
         continue
-      
+
       digest_count += 1
       signed_digest = self._digest_for_signature(key, sig)
 
@@ -1004,8 +1004,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     # More than 50% of the signed digests must be present and valid
     if (total_directories - valid_digests) >= (total_directories / 2.0):
-      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i' 
-              % (int(valid_digests), digest_count, int(total_directories / 2.0)))
+      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i'
+                        % (int(valid_digests), digest_count, int(total_directories / 2.0)))
 
   def digest(self):
     """
@@ -1022,7 +1022,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     :param :class: `str` key: A PEM encoded RSA private key.
     :param :class: `str` password: The password protecting the RSA private key.
-    :param :class: `str` digest: A digest to sign with the private key as a 
+    :param :class: `str` digest: A digest to sign with the private key as a
     string containing hex digits, self.digest() will be used if None.
 
     :returns: :class: `str` signature in PEM encoded format.
@@ -1041,14 +1041,14 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     key_size = key.key_size
     # format message as per RFC 2313
     message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
-    
+
     # Create manual sig
-    l = len(message)
+    length = len(message)
     m = int_from_bytes(message, byteorder='big')
     d = key.private_numbers().d
     n = key.private_numbers().public_numbers.n
     sig = pow(m, d, n)
-    sig = int_to_bytes(sig, l)
+    sig = int_to_bytes(sig, length)
 
     # PKCS1 formatting sig
     sig = base64.b64encode(sig)
@@ -1058,7 +1058,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
     sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
     return sig
-    
+
   def set_key_certs(self, key_certs = None):
     """
     Add KeyCertificates to DirectoryAuthority objects to allow signature
@@ -1068,7 +1068,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     authorities.
 
     :raises: **TypeError** if key_certs is not iterable.
-    :raises: **ValueError** if key_certs contains no KeyCertificates 
+    :raises: **ValueError** if key_certs contains no KeyCertificates
     """
     try:
       # map and populate KeyCertificate to the right DirectoryAuthority
@@ -1082,13 +1082,13 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
           try:
             key_cert = KeyCertificate(key_cert, validate = True)
             match = authorities.setdefault(key_cert.fingerprint, None)
-          except ValueError as exc:
-            raise 
+          except ValueError:
+            raise
 
         if match is not None:
           match.key_certificate = key_cert
-    except TypeError as exc:
-      raise 
+    except TypeError:
+      raise
 
   def get_signed_digests(self):
     """
