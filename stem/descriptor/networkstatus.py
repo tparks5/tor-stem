@@ -945,11 +945,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self._footer(document_file, validate)
 
     if validate and (key_certs is not None):
-        try:
-          self.set_key_certs(key_certs)
-          self.validate_signatures()
-        except ValueError:
-            raise
+      self.set_key_certs(key_certs)
+      self.validate_signatures()
 
   def get_signing_keys(self):
     """
@@ -1070,25 +1067,19 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :raises: **TypeError** if key_certs is not iterable.
     :raises: **ValueError** if key_certs contains no KeyCertificates
     """
-    try:
-      # map and populate KeyCertificate to the right DirectoryAuthority
-      authorities = {da.v3ident: da for da in self.directory_authorities}
-      for key_cert in key_certs:
-        try:
-          # Assume key_cert is a valid KeyCertificate
-          match = authorities.setdefault(key_cert.fingerprint, None)
-        except AttributeError:
-          # If key_cert isn't a KeyCertificate, try to recover by converting it
-          try:
-            key_cert = KeyCertificate(key_cert, validate = True)
-            match = authorities.setdefault(key_cert.fingerprint, None)
-          except ValueError:
-            raise
+    # map and populate KeyCertificate to the right DirectoryAuthority
+    authorities = {da.v3ident: da for da in self.directory_authorities}
+    for key_cert in key_certs:
+      try:
+        # Assume key_cert is a valid KeyCertificate
+        match = authorities.setdefault(key_cert.fingerprint, None)
+      except AttributeError:
+        # If key_cert isn't a KeyCertificate, try to recover by converting it
+        key_cert = KeyCertificate(key_cert, validate = True)
+        match = authorities.setdefault(key_cert.fingerprint, None)
 
-        if match is not None:
-          match.key_certificate = key_cert
-    except TypeError:
-      raise
+      if match is not None:
+        match.key_certificate = key_cert
 
   def get_signed_digests(self):
     """
@@ -1106,12 +1097,8 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     for da in self.directory_authorities:
       key = da.key_certificate.signing_key
       sig = sigs[da.v3ident].signature
-      try:
-        signed_digest = self._digest_for_signature(key, sig)
-        yield signed_digest
-      except ValueError:
-        # fails if no crypto module available
-        raise
+      signed_digest = self._digest_for_signature(key, sig)
+      yield signed_digest
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
