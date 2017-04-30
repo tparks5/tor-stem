@@ -1338,7 +1338,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       keys = []
       match = search(r"directory-signature", content)
       digest = document.digest()
-      for docsig in document.signatures:
+      for n in range(len(document.signatures)):
         # create new rsa key pair
         private_key = rsa.generate_private_key(
             public_exponent = 65537,
@@ -1351,7 +1351,6 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
                 format = serialization.PrivateFormat.PKCS8,
                 encryption_algorithm = serialization.NoEncryption())
         
-        keys.append(pk)
         sig = document.sign(pk) 
 
         # generate public_key in PEM format
@@ -1359,20 +1358,29 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
                 encoding = serialization.Encoding.PEM,
                 format = serialization.PublicFormat.SubjectPublicKeyInfo)
         
+        keys.append((pk, public_key))
+       
+        # give NSD custom signature
+        document.signatures[n].signature = sig
+
+        # give NSD the right public key for validate_signatures() to use
+        document.directory_authorities[n].key_certificate.signing_key = public_key
+
         # test that Stem can decrypt the signature
         decrypted = document._digest_for_signature(public_key, sig)
         self.assertEqual(digest, decrypted)
 
       # invalidate a couple signatures
-      print('key')
-      print(keys[0])
-      print('good digest'); print(digest)
       digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
-      sig = document.sign(keys[0], None, digest)
+      
+      sig = document.sign(keys[0][0], None, digest)
       document.signatures[0].signature = sig
-      sig = document.sign(keys[1], None, digest)
+      document.directory_authorities[0].key_certificate.signing_key = keys[0][1]
+
+      sig = document.sign(keys[1][0], None, digest)
       document.signatures[1].signature = sig
-      print('bad digest'); print(digest)
+      document.directory_authorities[1].key_certificate.signing_key = keys[1][1]
+      
       document.validate_signatures()
 """ 
       # majority of document signatures invalid, should fail validation
