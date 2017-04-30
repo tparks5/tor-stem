@@ -893,7 +893,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     'directory-signature': _parse_footer_directory_signature_line,
   }
 
-  def __init__(self, raw_content, validate = False, default_params = True):
+  def __init__(self, raw_content, validate = False, default_params = True, key_certs = None):
     """
     Parse a v3 network status document.
 
@@ -943,6 +943,175 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
+
+    if validate and (key_certs is not None):
+        try:
+          self.set_key_certs(key_certs)
+          self.validate_signatures()
+        except ValueError:
+            raise
+
+  def get_signing_keys(self):
+    """
+    Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD
+
+    :return: iterator for :class:`str` public signing keys
+    """
+    for da in self.directory_authorities:
+      key_cert = da.key_certificate
+
+      if key_cert is not None:
+        yield da.key_certificate.signing_key
+      else:
+        yield None
+
+  def get_signatures(self):
+    """
+    Generator of DocumentSignature.signature for this NSD
+
+    :returns: iterator for :class:`str` public key signatures
+    """
+    for ds in self.signatures:
+      yield ds.signature
+
+  def validate_signatures(self):
+    """
+    Validate DocumentSignature signed digests.
+
+    :raises: **ValueError** if an insufficient number of valid signatures are present.
+    """
+
+    try:
+      from itertools import izip  # For zipping generators in python2
+    except ImportError:
+      izip = zip
+
+    local_digest = self.digest()
+    valid_digests = 0.0
+    digest_count = 0
+    # Only 8 of the 9 directories sign a consensus
+    total_directories = 8
+
+    for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
+      if key is None or sig is None:
+        continue
+      
+      digest_count += 1
+      signed_digest = self._digest_for_signature(key, sig)
+
+      if signed_digest == local_digest:
+        valid_digests += 1.0
+
+    # More than 50% of the signed digests must be present and valid
+    if (total_directories - valid_digests) >= (total_directories / 2.0):
+      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i' 
+              % (int(valid_digests), digest_count, int(total_directories / 2.0)))
+
+  def digest(self):
+    """
+    Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3
+
+    :returns: :class:`str` digest of NetworkStatusDocumentV3 contents.
+    """
+    return self._digest_for_content(b'network-status-version', b'directory-signature ')
+
+  def sign(self, private_key, password=None, digest=None):
+    """
+    Sign the digest of the body and header of a NetworkStatusDocumentV3 with an
+    RSA private key.
+
+    :param :class: `str` key: A PEM encoded RSA private key.
+    :param :class: `str` password: The password protecting the RSA private key.
+    :param :class: `str` digest: A digest to sign with the private key as a 
+    string containing hex digits, self.digest() will be used if None.
+
+    :returns: :class: `str` signature in PEM encoded format.
+    """
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    from cryptography.utils import int_to_bytes, int_from_bytes
+    import base64
+    import codecs
+    from stem.util.str_tools import _to_unicode
+
+    if digest is None:
+      digest = self.digest()
+    digest = codecs.decode(digest, 'hex_codec')
+    key = load_pem_private_key(private_key, password, default_backend())
+    key_size = key.key_size
+    # format message as per RFC 2313
+    message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
+    
+    # Create manual sig
+    l = len(message)
+    m = int_from_bytes(message, byteorder='big')
+    d = key.private_numbers().d
+    n = key.private_numbers().public_numbers.n
+    sig = pow(m, d, n)
+    sig = int_to_bytes(sig, l)
+
+    # PKCS1 formatting sig
+    sig = base64.b64encode(sig)
+    sig = _to_unicode(sig)
+    formatted_sig = ''
+    for n in range(0, len(sig), 64):
+      formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
+    sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
+    return sig
+    
+  def set_key_certs(self, key_certs = None):
+    """
+    Add KeyCertificates to DirectoryAuthority objects to allow signature
+    validation of the NetworkStatusDocument.
+
+    :param list key_certs: A list of KeyCertificates to add to directory
+    authorities.
+
+    :raises: **TypeError** if key_certs is not iterable.
+    :raises: **ValueError** if key_certs contains no KeyCertificates 
+    """
+    try:
+      # map and populate KeyCertificate to the right DirectoryAuthority
+      authorities = {da.v3ident: da for da in self.directory_authorities}
+      for key_cert in key_certs:
+        try:
+          # Assume key_cert is a valid KeyCertificate
+          match = authorities.setdefault(key_cert.fingerprint, None)
+        except AttributeError:
+          # If key_cert isn't a KeyCertificate, try to recover by converting it
+          try:
+            key_cert = KeyCertificate(key_cert, validate = True)
+            match = authorities.setdefault(key_cert.fingerprint, None)
+          except ValueError as exc:
+            raise 
+
+        if match is not None:
+          match.key_certificate = key_cert
+    except TypeError as exc:
+      raise 
+
+  def get_signed_digests(self):
+    """
+    Returns a generator of DirectoryAuthority-signed digests of the
+    NetworkStatusDocumentv3.
+
+    :returns: iterator for :class:`str`
+
+    :raises: ValueError if cryptography support unavailable for signature
+    computation.
+    """
+
+    self.get_key_certs()
+    sigs = {sig.identity: sig for sig in self.signatures}
+    for da in self.directory_authorities:
+      key = da.key_certificate.signing_key
+      sig = sigs[da.v3ident].signature
+      try:
+        signed_digest = self._digest_for_signature(key, sig)
+        yield signed_digest
+      except ValueError:
+        # fails if no crypto module available
+        raise
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:

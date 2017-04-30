@@ -568,17 +568,16 @@ class Descriptor(object):
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives.serialization import load_der_public_key
     from cryptography.utils import int_to_bytes, int_from_bytes
-
     key = load_der_public_key(_bytes_for_block(signing_key), default_backend())
     modulus = key.public_numbers().n
     public_exponent = key.public_numbers().e
-
     sig_as_bytes = _bytes_for_block(signature)
     sig_as_long = int_from_bytes(sig_as_bytes, byteorder='big')  # convert signature to an int
-    blocksize = 128  # block size will always be 128 for a 1024 bit key
+
+    # sig is 256B for NetworkStatusDocuments, and 128B for other descriptors
+    blocksize = len(sig_as_bytes)
 
     # use the public exponent[e] & the modulus[n] to decrypt the int
-
     decrypted_int = pow(sig_as_long, public_exponent, modulus)
 
     # convert the int to a byte array
@@ -595,7 +594,6 @@ class Descriptor(object):
     # More info here http://www.ietf.org/rfc/rfc2313.txt
     #                esp the Notes in section 8.1
     ############################################################################
-
     try:
       if decrypted_bytes.index(b'\x00\x01') != 0:
         raise ValueError('Verification failed, identifier missing')
@@ -609,7 +607,6 @@ class Descriptor(object):
       seperator_index = decrypted_bytes.index(b'\x00', identifier_offset)
     except ValueError:
       raise ValueError('Verification failed, seperator not found')
-
     digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec')
     return stem.util.str_tools._to_unicode(digest_hex.upper())
 

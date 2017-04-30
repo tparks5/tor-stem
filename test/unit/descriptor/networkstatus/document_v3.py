@@ -1281,3 +1281,98 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
     document = NetworkStatusDocumentV3(content, validate = False)
     self.assertEqual((authority,), document.directory_authorities)
+
+  def test_validate_signatures(self):
+    """
+    Test that a consensus with valid signatures is accepted, and invalid signatures is 
+    rejected with an exception.
+    """
+    
+    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+
+      # happy case, should raise no exceptions
+      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
+      """
+      # document field modified, should fail validation
+      content.replace(b'valid-until 2017-03-28', b'valid-until 2600-03-28')
+      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = key_certs)
+
+      # signature checks should be quietly ignored if no key certs are given
+      invalid = NetworkStatusDocumentV3(content, validate = True, key_certs = None)
+
+      # validation should fail if given nonsense key certs
+      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = "nonsense")
+      self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
+
+      # restore document integrity
+      content.replace(b'valid-until 2600-03-28', b'valid-until 2017-03-28')
+      key_file.seek(0)
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
+
+      # mangled sig should raise ValueError over malformed signature data
+      sig = document.signatures[0].signature
+      sig = sig[:373] + u'0' + sig[374:]
+      document.signatures[0].signature = sig
+      self.assertRaises(ValueError, document.validate_signatures)
+      """
+      # generate custom keys to sign bad digests
+      from cryptography.hazmat.backends import default_backend
+      from cryptography.hazmat.primitives.asymmetric import padding, rsa
+      from cryptography.hazmat.primitives import serialization
+      
+      keys, sigs = [], []
+      digest = document.digest()
+      for n in range(len(document.signatures)):
+        # create new rsa key pair
+        private_key = rsa.generate_private_key(
+            public_exponent = 65537,
+            key_size = 2048,
+            backend = default_backend())
+
+        # generate private key in PEM format
+        pk = private_key.private_bytes(
+                encoding = serialization.Encoding.PEM,
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption())
+        
+        sig = document.sign(pk) 
+
+        # generate public_key in PEM format
+        public_key = private_key.public_key().public_bytes(
+                encoding = serialization.Encoding.PEM,
+                format = serialization.PublicFormat.SubjectPublicKeyInfo)
+        
+        keys.append(pk)
+       
+        # give NSD custom signature
+        document.signatures[n].signature = sig
+        sigs.append(sig)
+
+        # give NSD the right public key for validate_signatures() to use
+        document.directory_authorities[n].key_certificate.signing_key = public_key
+
+        # test that Stem can decrypt the signature
+        decrypted = document._digest_for_signature(public_key, sig)
+        self.assertEqual(digest, decrypted)
+
+      # invalidate a couple signatures, should pass validation
+      bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
+      
+      sig = document.sign(keys[0], None, bad_digest)
+      document.signatures[0].signature = sig
+
+      sig = document.sign(keys[1], None, bad_digest)
+      document.signatures[1].signature = sig
+      
+      document.validate_signatures()
+ 
+      # majority of document signatures invalid, should fail validation
+      for n in range((len(document.signatures) // 2) +1):
+        sig = document.sign(keys[n], None, bad_digest)
+        document.signatures[n].signature = sig
+
+      self.assertRaises(ValueError, document.validate_signatures)
+      
