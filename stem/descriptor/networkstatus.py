@@ -1148,7 +1148,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     if digest is None:
       digest = self.digest()
     digest = codecs.decode(digest, 'hex_codec')
-    
     key = load_pem_private_key(private_key, password, default_backend())
     key_size = key.key_size
     # format message as per RFC 2313
