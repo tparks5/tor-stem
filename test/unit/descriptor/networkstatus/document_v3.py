@@ -1302,6 +1302,23 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 'nonsense')
       self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
 
+  def test_late_validate_signatures():
+      """
+      Test that passed KeyCertificates to the NetworkStatusDocumentV3 are kept,
+      regardless of validate flag, to permit calling validate_signatures() at a
+      later time.
+      """
+
+    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+
+      document = NetworkStatusDocumentV3(content, validate = False, key_certs = key_certs)
+      document.validate_signatures()
+      
+      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
+      document.validate_signatures()
+
   def test_validate_signatures_mangled_sig():
     """
     Test that a damaged signature is rejected with an exception
