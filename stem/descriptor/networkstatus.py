@@ -944,9 +944,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
 
-    if validate and (key_certs is not None):
+    if key_certs is not None:
       self.set_key_certs(key_certs)
-      self.validate_signatures()
+      
+      if validate:
+        self.validate_signatures()
 
   def get_signing_keys(self):
     """
