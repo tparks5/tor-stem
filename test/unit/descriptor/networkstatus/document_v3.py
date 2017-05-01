@@ -1284,8 +1284,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
   def test_validate_signatures(self):
     """
-    Test that a consensus with valid signatures is accepted, and invalid signatures is
-    rejected with an exception.
+    Test that a consensus is accepted if signatures signatures are valid or
+    empty, and rejected with exception if signatures are invalid.
     """
 
     with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
@@ -1309,9 +1309,15 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 'nonsense')
       self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
 
-      # restore document integrity
-      content.replace(b'valid-until 2600-03-28', b'valid-until 2017-03-28')
-      key_file.seek(0)
+  def test_validate_signatures_mangled_sig():
+    """
+    Test that a damaged signature is rejected with an exception
+    """
+
+    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
 
@@ -1321,11 +1327,25 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       document.signatures[0].signature = sig
       self.assertRaises(ValueError, document.validate_signatures)
 
-      # generate custom keys to sign bad digests
-      from cryptography.hazmat.backends import default_backend
-      from cryptography.hazmat.primitives.asymmetric import rsa
-      from cryptography.hazmat.primitives import serialization
+  def test_validate_signatures_incorrect_digests(self):
+    """
+    Test that signatures decrypting to incorrect digests are tolerated if less
+    than half are incorrect, and rejected with an exception if half or more
+    are incorrect.
+    """
 
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+
+    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
+      
+      # generate custom keys to sign bad digests
       keys, sigs = [], []
       digest = document.digest()
       for n in range(len(document.signatures)):
