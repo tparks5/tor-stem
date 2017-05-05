@@ -496,8 +496,25 @@ class DescriptorDownloader(object):
     doesn't actually return a Network Status Document object.
     """
     query_args["document_handler"] = stem.descriptor.DocumentHandler.DOCUMENT
+    
+    # Attempt to get fresh KeyCertifiactes from network, fall back on cache.
+    # Required to validate network status document signatures.
+    try:
+      key_certs = DescriptorDownloader().get_key_certificates().run()
+    except (ValueError, socket.timeout, urllib2.URLError):
+      from os.path import expanduser
+      path = expanduser("~/.tor/cached-certs")
+      f = open(path, 'rb')
+      key_certs = _parse_file_key_certs(f, validate=True)
 
-    return list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
+    # pass KeyCertificates to nsd's constructor via Query's **kwargs
+    if query_args.setdefault("key_certificates", None) is None:
+      query_args["key_certificates"] = key_certs
+
+    print("query_args", query_args)
+    nsd = list(self.get_consensus(authority_v3ident, microdescriptor, **query_args).run())[0]
+   
+    return nsd
     
   def use_directory_mirrors(self):
     """
