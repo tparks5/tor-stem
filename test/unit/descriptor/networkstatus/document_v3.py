@@ -1291,19 +1291,30 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       # happy case, should raise no exceptions
       NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
 
-      # document field modified, should fail validation
-      content.replace(b'valid-until 2017-03-28', b'valid-until 2600-03-28')
+      # validation should fail if given nonsense key certs
+      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 'nonsense')
+      self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
+
+  def test_validate_signatures_modified_consensus(self):
+    """
+    Test that a modified but correct consensus is accepted quietly if no key
+    certificates are given to perform validation with, and rejected if 
+    signatures are validated.
+    """
+
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
+      key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+      
+      # document field modified, should fail signature validation
+      content = content.replace(b'valid-until 2012-07-12', b'valid-until 2600-03-28')
       self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = key_certs)
 
       # signature checks should be quietly ignored if no key certs are given
       invalid = NetworkStatusDocumentV3(content, validate = True, key_certs = None)
 
-      # validation should fail if no certs defined
+      # forced signature validation should fail if no certs were defined
       self.assertRaises(ValueError, invalid.validate_signatures)
-
-      # validation should fail if given nonsense key certs
-      self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 'nonsense')
-      self.assertRaises(TypeError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = 42)
 
   def test_late_validate_signatures(self):
     """
@@ -1328,7 +1339,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
   def test_validate_signatures_mangled_sig(self):
     """
-    Test that a damaged signature is rejected with an exception
+    Test that a damaged signature is rejected with an exception.
     """
 
     with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
@@ -1401,11 +1412,9 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       # invalidate a couple signatures, should pass validation
       bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
 
-      sig = document.sign(keys[0], None, bad_digest)
-      document.signatures[0].signature = sig
-
-      sig = document.sign(keys[1], None, bad_digest)
-      document.signatures[1].signature = sig
+      for n in range(0, 1):
+        sig = document.sign(keys[n], None, bad_digest)
+        document.signatures[n].signature = sig
 
       document.validate_signatures()
 
