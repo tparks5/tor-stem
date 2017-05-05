@@ -1281,7 +1281,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     empty, and rejected with exception if signatures are invalid.
     """
 
-    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
 
@@ -1309,7 +1309,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     later time.
     """
 
-    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
 
@@ -1328,7 +1328,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     Test that a damaged signature is rejected with an exception
     """
 
-    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
 
@@ -1352,7 +1352,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.hazmat.primitives import serialization
 
-    with open(get_resource('cached-consensus-sig-validation'), 'rb') as document_file, open(get_resource('cached-certs-sig-validation'), 'rb') as key_file:
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
 
