@@ -1057,7 +1057,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     if key_certs is not None:
       self.set_key_certs(key_certs)
-      
+
       if validate:
         self.validate_signatures()
 
@@ -1108,7 +1108,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
       digest_count += 1
       signed_digest = self._digest_for_signature(key, sig)
-      
+
       if signed_digest == local_digest:
         valid_digests += 1.0
 
@@ -1188,7 +1188,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         fingerprint = key_cert.fingerprint
 
         # Assume key_cert is a valid KeyCertificate
-        match = authorities.setdefault(fingerprint, None);
+        match = authorities.setdefault(fingerprint, None)
       except AttributeError:
         # If key_cert isn't a KeyCertificate, try to recover by converting it
         key_cert = KeyCertificate(key_cert, validate = True)

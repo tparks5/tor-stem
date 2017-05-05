@@ -720,7 +720,7 @@ class Descriptor(object):
       seperator_index = decrypted_bytes.index(b'\x00', identifier_offset)
     except ValueError:
       raise ValueError('Verification failed, seperator not found')
-    
+
     digest_hex = codecs.encode(decrypted_bytes[seperator_index + 1:], 'hex_codec')
     return stem.util.str_tools._to_unicode(digest_hex.upper())
 
