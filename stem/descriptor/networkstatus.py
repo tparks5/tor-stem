@@ -1067,6 +1067,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     :return: iterator for :class:`str` public signing keys
     """
+
     for da in self.directory_authorities:
       key_cert = da.key_certificate
 
@@ -1081,6 +1082,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     :returns: iterator for :class:`str` public key signatures
     """
+
     for ds in self.signatures:
       yield ds.signature
 
@@ -1099,7 +1101,9 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     local_digest = self.digest()
     valid_digests = 0.0
     digest_count = 0
+
     # Only 8 of the 9 directories sign a consensus
+
     total_directories = 8
 
     for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
@@ -1113,9 +1117,9 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
         valid_digests += 1.0
 
     # More than 50% of the signed digests must be present and valid
+
     if (total_directories - valid_digests) >= (total_directories / 2.0):
-      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i'
-                        % (int(valid_digests), digest_count, int(total_directories / 2.0)))
+      raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i' % (int(valid_digests), digest_count, int(total_directories / 2.0)))
 
   def digest(self):
     """
@@ -1175,14 +1179,17 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     validation of the NetworkStatusDocument.
 
     :param list key_certs: A list of KeyCertificates to add to directory
-    authorities.
+      authorities.
 
-    :raises: **TypeError** if key_certs is not iterable.
-    :raises: **ValueError** if key_certs contains no KeyCertificates
+    :raises:
+      * **TypeError** if key_certs is not iterable.
+      * **ValueError** if key_certs contains no KeyCertificates
     """
 
     # map and populate KeyCertificate to the right DirectoryAuthority
+
     authorities = {da.v3ident: da for da in self.directory_authorities}
+
     for key_cert in key_certs:
       try:
         fingerprint = key_cert.fingerprint
@@ -1205,7 +1212,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :returns: iterator for :class:`str`
 
     :raises: ValueError if cryptography support unavailable for signature
-    computation.
+      computation.
     """
 
     self.get_key_certs()

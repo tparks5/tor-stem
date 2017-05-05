@@ -646,8 +646,9 @@ class DescriptorDownloader(object):
 
     # Attempt to get fresh KeyCertifiactes from network, fall back on cache.
     # Required to validate network status document signatures.
+
     try:
-      key_certs = DescriptorDownloader().get_key_certificates(**kwargs).run()
+      key_certs = DescriptorDownloader().get_key_certificates(**query_args).run()
     except Exception:
       from os.path import expanduser
       path = expanduser('~/.tor/cached-certs')
