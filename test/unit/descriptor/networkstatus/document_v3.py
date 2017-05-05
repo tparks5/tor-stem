@@ -1286,7 +1286,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       content = document_file.read()
 
       # happy case, should raise no exceptions
-      document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
+      NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
 
       # document field modified, should fail validation
       content.replace(b'valid-until 2017-03-28', b'valid-until 2600-03-28')
@@ -1315,8 +1315,11 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
       document = NetworkStatusDocumentV3(content, validate = False, key_certs = key_certs)
       document.validate_signatures()
-      
+
+      # reset key_certs generator
+      key_file.seek(0)
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
+
       document = NetworkStatusDocumentV3(content, validate = True, key_certs = key_certs)
       document.validate_signatures()
 
@@ -1355,7 +1358,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       document = NetworkStatusDocumentV3(raw_content = content, validate = True, key_certs = key_certs)
-      
+
       # generate custom keys to sign bad digests
       keys, sigs = [], []
       digest = document.digest()
