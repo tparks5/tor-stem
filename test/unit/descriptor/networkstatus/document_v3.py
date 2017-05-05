@@ -1305,14 +1305,14 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
   def test_validate_signatures_modified_consensus(self):
     """
     Test that a modified but correct consensus is accepted quietly if no key
-    certificates are given to perform validation with, and rejected if 
+    certificates are given to perform validation with, and rejected if
     signatures are validated.
     """
 
     with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = stem.descriptor.networkstatus._parse_file_key_certs(key_file, validate = True)
       content = document_file.read()
-      
+
       # document field modified, should fail signature validation
       content = content.replace(b'valid-until 2012-07-12', b'valid-until 2600-03-28')
       self.assertRaises(ValueError, NetworkStatusDocumentV3, raw_content = content, validate = True, key_certs = key_certs)
