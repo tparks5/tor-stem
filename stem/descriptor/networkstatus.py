@@ -997,7 +997,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
       digest_count += 1
       signed_digest = self._digest_for_signature(key, sig)
-
+      
       if signed_digest == local_digest:
         valid_digests += 1.0
 
@@ -1069,16 +1069,19 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :raises: **TypeError** if key_certs is not iterable.
     :raises: **ValueError** if key_certs contains no KeyCertificates
     """
+
     # map and populate KeyCertificate to the right DirectoryAuthority
     authorities = {da.v3ident: da for da in self.directory_authorities}
     for key_cert in key_certs:
       try:
+        fingerprint = key_cert.fingerprint
+
         # Assume key_cert is a valid KeyCertificate
-        match = authorities.setdefault(key_cert.fingerprint, None)
+        match = authorities.setdefault(fingerprint, None);
       except AttributeError:
         # If key_cert isn't a KeyCertificate, try to recover by converting it
         key_cert = KeyCertificate(key_cert, validate = True)
-        match = authorities.setdefault(key_cert.fingerprint, None)
+        match = authorities.setdefault(fingerprint, None)
 
       if match is not None:
         match.key_certificate = key_cert
