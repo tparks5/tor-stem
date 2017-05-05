@@ -105,9 +105,12 @@ class TestNetworkStatusDocument(unittest.TestCase):
     }
 
     expected_signature = """-----BEGIN SIGNATURE-----
-HFXB4497LzESysYJ/4jJY83E5vLjhv+igIxD9LU6lf6ftkGeF+lNmIAIEKaMts8H
-mfWcW0b+jsrXcJoCxV5IrwCDF3u1aC3diwZY6yiG186pwWbOwE41188XI2DeYPwE
-I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
+fO3iJfDMmMFbatbXSJKayVbziWKzqCfi0vNvwx5LtqVxEjivwLxL3c9fFiDIxImW
+BSSkZGZ6QhJPo9bfsa/VPtGoWJcTEnr3aPJPV32NK9Z4e3Kc+Ce4HlNnhkSLwTqB
+I1u0CPES7SY1m6iX62U0h93EqKQA29tWDTGf0IcgTD9v/bMPZCprXX7T4MG0ouqW
+trHK//w3fLmgSCHfHHClJGv7Y62ItFrkiwUlW2rgmtf0d8WZ0b7kFwcNadMUuhIJ
+8wvG1ewRj+rg6Z2UuwSl9Im1+ogdZwSzJ26cPK9ZKMu1kS68NEk6C9BtGHcMWLT+
+6I66vcStZVTXcIOMoSfy+A==
 -----END SIGNATURE-----"""
 
     with open(get_resource('cached-consensus'), 'rb') as descriptor_file:
@@ -148,7 +151,7 @@ I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
       authority = document.directory_authorities[0]
       self.assertEqual(8, len(document.directory_authorities))
       self.assertEqual('tor26', authority.nickname)
-      self.assertEqual('14C131DFC5C6F93646BE72FA1401C02A8DF2E8B4', authority.fingerprint)
+      self.assertEqual('507890D24A3FD1B2D2C04260DEFEBAEC5A8AA438', authority.fingerprint)
       self.assertEqual('86.59.21.38', authority.hostname)
       self.assertEqual('86.59.21.38', authority.address)
       self.assertEqual(80, authority.dir_port)
@@ -161,8 +164,8 @@ I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
       signature = document.signatures[0]
       self.assertEqual(8, len(document.signatures))
       self.assertEqual('sha1', signature.method)
-      self.assertEqual('14C131DFC5C6F93646BE72FA1401C02A8DF2E8B4', signature.identity)
-      self.assertEqual('BF112F1C6D5543CFD0A32215ACABD4197B5279AD', signature.key_digest)
+      self.assertEqual('507890D24A3FD1B2D2C04260DEFEBAEC5A8AA438', signature.identity)
+      self.assertEqual('3295316120DFD793BB1341CFB2315A3426AC34C0', signature.key_digest)
       self.assertEqual(expected_signature, signature.signature)
 
   def test_metrics_vote(self):
@@ -1277,8 +1280,8 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
   def test_validate_signatures(self):
     """
-    Test that a consensus is accepted if signatures signatures are valid or
-    empty, and rejected with exception if signatures are invalid.
+    Test that a consensus is accepted if passed signatures are valid or
+    empty, and rejected with exception if passed signatures are invalid.
     """
 
     with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
