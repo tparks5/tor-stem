@@ -12,6 +12,7 @@ import stem.version
 
 from stem import Flag
 from stem.util import str_type
+from test.util import require_cryptography
 
 from stem.descriptor.networkstatus import (
   HEADER_STATUS_DOCUMENT_FIELDS,
@@ -1355,6 +1356,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
       document.signatures[0].signature = sig
       self.assertRaises(ValueError, document.validate_signatures)
 
+  @require_cryptography
   def test_validate_signatures_incorrect_digests(self):
     """
     Test that signatures decrypting to incorrect digests are tolerated if less
