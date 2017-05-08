@@ -1099,50 +1099,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     """
     return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
-  def sign(self, private_key, password=None, digest=None):
-    """
-    Sign the digest of the body and header of a NetworkStatusDocumentV3 with an
-    RSA private key.
-
-    :param :class: `str` key: A PEM encoded RSA private key.
-    :param :class: `str` password: The password protecting the RSA private key.
-    :param :class: `str` digest: A digest to sign with the private key as a
-    string containing hex digits, self.digest() will be used if None.
-
-    :returns: :class: `str` signature in PEM encoded format.
-    """
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    from cryptography.utils import int_to_bytes, int_from_bytes
-    import base64
-    import codecs
-    from stem.util.str_tools import _to_unicode
-
-    if digest is None:
-      digest = self.digest()
-    digest = codecs.decode(digest, 'hex_codec')
-    key = load_pem_private_key(private_key, password, default_backend())
-    key_size = key.key_size
-    # format message as per RFC 2313
-    message = b'\x00\x01' + b'\xFF' * ((key_size // 8) - 3 - len(digest)) + b'\x00' + bytes(digest)
-
-    # Create manual sig
-    length = len(message)
-    m = int_from_bytes(message, byteorder='big')
-    d = key.private_numbers().d
-    n = key.private_numbers().public_numbers.n
-    sig = pow(m, d, n)
-    sig = int_to_bytes(sig, length)
-
-    # PKCS1 formatting sig
-    sig = base64.b64encode(sig)
-    sig = _to_unicode(sig)
-    formatted_sig = ''
-    for n in range(0, len(sig), 64):
-      formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
-    sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
-    return sig
-
   def get_unrecognized_lines(self):
     if self._lazy_loading:
       self._parse(self._header_entries, False, parser_for_line = self.HEADER_PARSER_FOR_LINE)
