@@ -1004,7 +1004,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
   def create(cls, attr = None, exclude = (), validate = True, authorities = None, routers = None):
     return cls(cls.content(attr, exclude, authorities, routers), validate = validate)
 
-  def __init__(self, raw_content, validate = False, default_params = True, key_certs = None):
+  def __init__(self, raw_content, validate = False, default_params = True):
     """
     Parse a v3 network status document.
 
@@ -1055,48 +1055,17 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     self.routers = dict((desc.fingerprint, desc) for desc in router_iter)
     self._footer(document_file, validate)
 
-    if key_certs is not None:
-      self.set_key_certs(key_certs)
-
-      if validate:
-        self.validate_signatures()
-
-  def get_signing_keys(self):
-    """
-    Generator of DirectoryAuthority.KeyCertificate.signing_key values for this NSD
-
-    :return: iterator for :class:`str` public signing keys
-    """
-
-    for da in self.directory_authorities:
-      key_cert = da.key_certificate
-
-      if key_cert is not None:
-        yield da.key_certificate.signing_key
-      else:
-        yield None
-
-  def get_signatures(self):
-    """
-    Generator of DocumentSignature.signature for this NSD
-
-    :returns: iterator for :class:`str` public key signatures
-    """
-
-    for ds in self.signatures:
-      yield ds.signature
-
-  def validate_signatures(self):
+  def validate_signatures(self, key_certs):
     """
     Validate DocumentSignature signed digests.
+
+    :param list key_certs: list of KeyCertificates to validate the consensus
+      against
 
     :raises: **ValueError** if an insufficient number of valid signatures are present.
     """
 
-    try:
-      from itertools import izip  # For zipping generators in python2
-    except ImportError:
-      izip = zip
+    signing_keys = dict([(cert.fingerprint, cert.signing_key) for cert in key_certs])
 
     local_digest = self.digest()
     valid_digests = 0.0
@@ -1106,10 +1075,11 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     total_directories = 8
 
-    for key, sig in izip(self.get_signing_keys(), self.get_signatures()):
-      if key is None or sig is None:
+    for sig in self.signatures:
+      if sig.identity not in signing_keys:
         continue
 
+      key = signing_keys[sig.identity]
       digest_count += 1
       signed_digest = self._digest_for_signature(key, sig)
 
@@ -1172,37 +1142,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       formatted_sig = formatted_sig + sig[n:n + 64] + '\n'
     sig = ('-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----')
     return sig
-
-  def set_key_certs(self, key_certs = None):
-    """
-    Add KeyCertificates to DirectoryAuthority objects to allow signature
-    validation of the NetworkStatusDocument.
-
-    :param list key_certs: A list of KeyCertificates to add to directory
-      authorities.
-
-    :raises:
-      * **TypeError** if key_certs is not iterable.
-      * **ValueError** if key_certs contains no KeyCertificates
-    """
-
-    # map and populate KeyCertificate to the right DirectoryAuthority
-
-    authorities = {da.v3ident: da for da in self.directory_authorities}
-
-    for key_cert in key_certs:
-      try:
-        fingerprint = key_cert.fingerprint
-
-        # Assume key_cert is a valid KeyCertificate
-        match = authorities.setdefault(fingerprint, None)
-      except AttributeError:
-        # If key_cert isn't a KeyCertificate, try to recover by converting it
-        key_cert = KeyCertificate(key_cert, validate = True)
-        match = authorities.setdefault(fingerprint, None)
-
-      if match is not None:
-        match.key_certificate = key_cert
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
