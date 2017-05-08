@@ -1065,11 +1065,13 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
     :raises: **ValueError** if an insufficient number of valid signatures are present.
     """
 
-    signing_keys = dict([(cert.fingerprint, cert.signing_key) for cert in key_certs])
+    # sha1 hash of the body and header
 
-    local_digest = self.digest()
+    local_digest = self._digest_for_content(b'network-status-version', b'directory-signature ')
+
     valid_digests = 0.0
     digest_count = 0
+    signing_keys = dict([(cert.fingerprint, cert.signing_key) for cert in key_certs])
 
     # Only 8 of the 9 directories sign a consensus
 
@@ -1090,14 +1092,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
 
     if (total_directories - valid_digests) >= (total_directories / 2.0):
       raise ValueError('Network Status Document has %i valid signatures out of %i total, needed %i' % (int(valid_digests), digest_count, int(total_directories / 2.0)))
-
-  def digest(self):
-    """
-    Returns the SHA1 hash of the body and header of the NetworkStatusDocumentV3
-
-    :returns: :class:`str` digest of NetworkStatusDocumentV3 contents.
-    """
-    return self._digest_for_content(b'network-status-version', b'directory-signature ')
 
   def get_unrecognized_lines(self):
     if self._lazy_loading:
