@@ -105,12 +105,9 @@ class TestNetworkStatusDocument(unittest.TestCase):
     }
 
     expected_signature = """-----BEGIN SIGNATURE-----
-fO3iJfDMmMFbatbXSJKayVbziWKzqCfi0vNvwx5LtqVxEjivwLxL3c9fFiDIxImW
-BSSkZGZ6QhJPo9bfsa/VPtGoWJcTEnr3aPJPV32NK9Z4e3Kc+Ce4HlNnhkSLwTqB
-I1u0CPES7SY1m6iX62U0h93EqKQA29tWDTGf0IcgTD9v/bMPZCprXX7T4MG0ouqW
-trHK//w3fLmgSCHfHHClJGv7Y62ItFrkiwUlW2rgmtf0d8WZ0b7kFwcNadMUuhIJ
-8wvG1ewRj+rg6Z2UuwSl9Im1+ogdZwSzJ26cPK9ZKMu1kS68NEk6C9BtGHcMWLT+
-6I66vcStZVTXcIOMoSfy+A==
+HFXB4497LzESysYJ/4jJY83E5vLjhv+igIxD9LU6lf6ftkGeF+lNmIAIEKaMts8H
+mfWcW0b+jsrXcJoCxV5IrwCDF3u1aC3diwZY6yiG186pwWbOwE41188XI2DeYPwE
+I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
 -----END SIGNATURE-----"""
 
     with open(get_resource('cached-consensus'), 'rb') as descriptor_file:
