@@ -1204,25 +1204,6 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       if match is not None:
         match.key_certificate = key_cert
 
-  def get_signed_digests(self):
-    """
-    Returns a generator of DirectoryAuthority-signed digests of the
-    NetworkStatusDocumentv3.
-
-    :returns: iterator for :class:`str`
-
-    :raises: ValueError if cryptography support unavailable for signature
-      computation.
-    """
-
-    self.get_key_certs()
-    sigs = {sig.identity: sig for sig in self.signatures}
-    for da in self.directory_authorities:
-      key = da.key_certificate.signing_key
-      sig = sigs[da.v3ident].signature
-      signed_digest = self._digest_for_signature(key, sig)
-      yield signed_digest
-
   def get_unrecognized_lines(self):
     if self._lazy_loading:
       self._parse(self._header_entries, False, parser_for_line = self.HEADER_PARSER_FOR_LINE)
