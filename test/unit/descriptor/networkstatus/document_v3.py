@@ -1272,13 +1272,111 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
     document = NetworkStatusDocumentV3(content, validate = False)
     self.assertEqual((authority,), document.directory_authorities)
 
-  def test_signature_validation(self):
+  def test_validate_signatures(self):
     """
     Test that valid consensus passes signatured validation.
     """
-    with open(get_resource('cached-consensus'), 'rb') as doc_file, open(get_resource('cached-certs'), 'rb') as key_file:
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
       key_certs = _parse_file_key_certs(key_file, validate = True)
-      content = doc_file.read()
-      doc = NetworkStatusDocumentV3(content, validate = True)
-      doc.validate_signatures(key_certs)
+      content = document_file.read()
+      document = NetworkStatusDocumentV3(content, validate = True)
+      document.validate_signatures(key_certs)
 
+  def test_validate_signatures_invalid_digests(self):
+    """
+    Test that a consensus document passes signature validation if a minority of
+    signed digests are invalid, and fails validation with an exception if a 
+    majority are invalid.
+    """
+    
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization 
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    from cryptography.utils import int_to_bytes, int_from_bytes
+    import base64
+    import codecs
+    import hashlib
+    from stem.util.str_tools import _to_unicode
+
+    with open(get_resource('cached-consensus'), 'rb') as document_file, open(get_resource('cached-certs'), 'rb') as key_file:
+      key_certs = _parse_file_key_certs(key_file, validate = True)
+      content = document_file.read()
+      document = NetworkStatusDocumentV3(content, validate = True)
+
+      def sign(private_key, digest):
+        # sign document content
+        hex_digest = codecs.decode(digest, 'hex_codec')
+        message = b'\x00\x01' + b'\xff' * ((key_size // 8) - 3 - len(hex_digest)) + b'\x00' + bytes(hex_digest)
+        length = len(message)
+        m = int_from_bytes(message, byteorder='big')
+        d = private_key.private_numbers().d
+        n = private_key.private_numbers().public_numbers.n
+        sig = pow(m, d, n)
+        sig = int_to_bytes(sig, length)
+
+        # format document sig as PKCS1
+        sig = _to_unicode(base64.b64encode(sig))
+        formatted_sig = ''
+        for n in range(0, len(sig), 64):
+          formatted_sig =  formatted_sig + sig[n:n + 64] + '\n'
+        sig = '-----BEGIN SIGNATURE-----\n' + formatted_sig + '-----END SIGNATURE-----'
+        
+        return sig
+
+      # generate custom keys to sign bad digests
+      keys, sigs, key_certs = [], [], []
+      digest = document._digest_for_content(b'network-status-version', b'directory-signature ')
+      key_size = 2048
+      for n in range(len(document.signatures)):
+        # create new rsa key pair
+        private_key = rsa.generate_private_key(
+            public_exponent = 65537,
+            key_size = key_size,
+            backend = default_backend())
+
+        keys.append(private_key)
+
+        # generate fingerprint of key
+        fingerprint = hashlib.sha1(private_key.private_bytes(
+          serialization.Encoding.DER,
+          encryption_algorithm = serialization.NoEncryption(),
+          format = serialization.PrivateFormat.PKCS8))
+        fingerprint = fingerprint.hexdigest().upper()
+        
+        # generate public_key in PEM format
+        public_key = private_key.public_key().public_bytes(
+          encoding = serialization.Encoding.PEM,
+          format = serialization.PublicFormat.SubjectPublicKeyInfo)
+        
+        sig = sign(private_key, digest)
+
+        # create key_cert that can validate this sig
+        # lie about the details and don't validate for simplicity
+        kc = b'dir-key-certificate-version 3\nfingerprint ' + fingerprint +\
+            b'dir-key-published 2012-07-11 06:00:00\ndir-key-expires 2013-07-11 06:00:00' +\
+            b'dir-identity-key' + public_key + b'dir-signing-key' + public_key +\
+            b'dir-key-crosscert' + public_key + b'dir-key-certification' + public_key
+        key_certs.append(stem.descriptor.networkstatus.KeyCertificate(raw_content = kc, validate = False))
+
+        # give NSD custom signature
+        document.signatures[n].signature = sig
+        sigs.append(sig)
+
+      document.validate_signatures(key_certs)
+
+      # invalidate a couple signatures, should pass validation
+      bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
+    
+      for n in range(0, 1):
+        sig = sign(keys[n], bad_digest)
+        document.signatures[n].signature = sig
+
+      document.validate_signatures(key_certs)
+
+      # majority of document signatures invalid, should fail validation
+      for n in range((len(document.signatures) // 2) + 1):
+        sig = sign(keys[n], None, bad_digest)
+        document.signatures[n].signature = sig
+
+      self.assertRaises(ValueError, document.validate_signatures, pubkeys)
