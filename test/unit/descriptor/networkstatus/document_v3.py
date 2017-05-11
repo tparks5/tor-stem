@@ -105,11 +105,7 @@ class TestNetworkStatusDocument(unittest.TestCase):
       'Wmd': 3335, 'Wme': 0, 'Wmg': 3536, 'Wmm': 10000
     }
 
-    expected_signature = """-----BEGIN SIGNATURE-----
-HFXB4497LzESysYJ/4jJY83E5vLjhv+igIxD9LU6lf6ftkGeF+lNmIAIEKaMts8H
-mfWcW0b+jsrXcJoCxV5IrwCDF3u1aC3diwZY6yiG186pwWbOwE41188XI2DeYPwE
-I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
------END SIGNATURE-----"""
+    expected_signature = """-----BEGIN SIGNATURE-----\nCCJe+xK7XVNWXjgTQ/Kq2EDLFtjKozl/w3dklJM1IFKkKa57RR+B3r2SVWJuvPv4\nPJVP8zjBWvRyJj2djU9bRBxKid7Ch4REmI7Wj5r/29OZ4tqVsLgm37X0joAFCskg\nmAmwbx3XX1C+wTPOY9g3awA7h/61sIpkoAAz8LFpVYEf/4qsBBMwUmQuGTsJUxJE\ntDpZo2OrQFGrhT7nHbH53Rj62KE1CB7voWwto8TkjwWC7OZbqXJaSkQ7nQlEaJZt\nZZfrvfjR2hB+nfFHctCMrt8HHuwSdUZSigrPGpU/VlUl/tu+mxiMsr2HvsJhbmyg\nXXZ48yaLSxNQLB4XjXky+w==\n-----END SIGNATURE-----"""
 
     with open(get_resource('cached-consensus'), 'rb') as descriptor_file:
       document = stem.descriptor.networkstatus.NetworkStatusDocumentV3(descriptor_file.read(), default_params = False)
@@ -149,7 +145,7 @@ I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
       authority = document.directory_authorities[0]
       self.assertEqual(8, len(document.directory_authorities))
       self.assertEqual('tor26', authority.nickname)
-      self.assertEqual('14C131DFC5C6F93646BE72FA1401C02A8DF2E8B4', authority.fingerprint)
+      self.assertEqual('DF4349C6EFB368667568688E8A99DB3DED7E0EEE', authority.fingerprint)
       self.assertEqual('86.59.21.38', authority.hostname)
       self.assertEqual('86.59.21.38', authority.address)
       self.assertEqual(80, authority.dir_port)
@@ -162,8 +158,8 @@ I/TJmV928na7RLZe2mGHCAW3VQOvV+QkCfj05VZ8CsY=
       signature = document.signatures[0]
       self.assertEqual(8, len(document.signatures))
       self.assertEqual('sha1', signature.method)
-      self.assertEqual('14C131DFC5C6F93646BE72FA1401C02A8DF2E8B4', signature.identity)
-      self.assertEqual('BF112F1C6D5543CFD0A32215ACABD4197B5279AD', signature.key_digest)
+      self.assertEqual('DF4349C6EFB368667568688E8A99DB3DED7E0EEE', signature.identity)
+      self.assertEqual('F7CA999DA626CC0936A3B137CA46A274669667D3', signature.key_digest)
       self.assertEqual(expected_signature, signature.signature)
 
   def test_metrics_vote(self):
