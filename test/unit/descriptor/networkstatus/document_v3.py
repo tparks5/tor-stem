@@ -1347,22 +1347,26 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         # generate public_key in PEM format
         public_key = private_key.public_key().public_bytes(
           encoding = serialization.Encoding.PEM,
-          format = serialization.PublicFormat.SubjectPublicKeyInfo)
+          format = serialization.PublicFormat.PKCS1)
         
         sig = sign(private_key, digest)
 
         # create key_cert that can validate this sig
         # lie about the details and don't validate for simplicity
         kc = b'dir-key-certificate-version 3\nfingerprint ' + fingerprint +\
-            b'dir-key-published 2012-07-11 06:00:00\ndir-key-expires 2013-07-11 06:00:00' +\
-            b'dir-identity-key' + public_key + b'dir-signing-key' + public_key +\
-            b'dir-key-crosscert' + public_key + b'dir-key-certification' + public_key
+            b'\ndir-key-published 2012-07-11 06:00:00\ndir-key-expires 2013-07-11 06:00:00' +\
+            b'\ndir-identity-key\n' + public_key + b'dir-signing-key\n' + public_key +\
+            b'dir-key-crosscert\n' + public_key + b'dir-key-certification\n' + public_key
         key_certs.append(stem.descriptor.networkstatus.KeyCertificate(raw_content = kc, validate = False))
+
+        # Tell DocSig about its new key fingerprint
+        document.signatures[n].identity = fingerprint
 
         # give NSD custom signature
         document.signatures[n].signature = sig
         sigs.append(sig)
 
+      import pdb; pdb.set_trace()
       document.validate_signatures(key_certs)
 
       # invalidate a couple signatures, should pass validation
