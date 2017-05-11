@@ -1078,7 +1078,7 @@ class NetworkStatusDocumentV3(NetworkStatusDocument):
       if sig.identity not in signing_keys:
         continue
 
-      signed_digest = self._digest_for_signature(signing_keys[sig.identity], sig)
+      signed_digest = self._digest_for_signature(signing_keys[sig.identity], sig.signature)
       total_digests += 1
 
       if signed_digest == local_digest:

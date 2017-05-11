@@ -23,6 +23,7 @@ from stem.descriptor.networkstatus import (
   DirectoryAuthority,
   NetworkStatusDocumentV3,
   _parse_file,
+  _parse_file_key_certs,
 )
 
 from stem.descriptor.router_status_entry import (
@@ -1274,3 +1275,14 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
     document = NetworkStatusDocumentV3(content, validate = False)
     self.assertEqual((authority,), document.directory_authorities)
+
+  def test_signature_validation(self):
+    """
+    Test that valid consensus passes signatured validation.
+    """
+    with open(get_resource('cached-consensus'), 'rb') as doc_file, open(get_resource('cached-certs'), 'rb') as key_file:
+      key_certs = _parse_file_key_certs(key_file, validate = True)
+      content = doc_file.read()
+      doc = NetworkStatusDocumentV3(content, validate = True)
+      doc.validate_signatures(key_certs)
+
