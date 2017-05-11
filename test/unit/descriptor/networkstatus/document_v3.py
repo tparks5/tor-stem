@@ -1366,9 +1366,6 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
         document.signatures[n].signature = sig
         sigs.append(sig)
 
-      import pdb; pdb.set_trace()
-      document.validate_signatures(key_certs)
-
       # invalidate a couple signatures, should pass validation
       bad_digest = digest.replace('1', '0').replace('2', '0').replace('3', '0')
     
@@ -1380,7 +1377,7 @@ DnN5aFtYKiTc19qIC7Nmo+afPdDEf0MlJvEOP5EWl3w=
 
       # majority of document signatures invalid, should fail validation
       for n in range((len(document.signatures) // 2) + 1):
-        sig = sign(keys[n], None, bad_digest)
+        sig = sign(keys[n], bad_digest)
         document.signatures[n].signature = sig
 
-      self.assertRaises(ValueError, document.validate_signatures, pubkeys)
+      self.assertRaises(ValueError, document.validate_signatures, key_certs)
